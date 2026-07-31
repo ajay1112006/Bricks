@@ -144,14 +144,14 @@ export default function SessionTracker() {
       {/* Top Header & Controls */}
       <div className="glass-panel p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <span>Daily Session Mark-In</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-semibold">
+          <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-amber-100 flex items-center gap-2">
+            <span>Elyon Staff Session Mark-In</span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-semibold font-sans">
               4 Sessions / Day
             </span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Rapid attendance logging organized into 4 distinct daily operational sessions.
+            Elyon Traders staff attendance logging organized into 4 distinct daily operational sessions.
           </p>
         </div>
 

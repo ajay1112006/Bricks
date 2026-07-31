@@ -8,6 +8,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        gold: {
+          50: '#fdfbf7',
+          100: '#f9f4e8',
+          200: '#f2e5cb',
+          300: '#e7d0a3',
+          400: '#d7b475',
+          500: '#c5a880',
+          600: '#b89b6a',
+          700: '#997d52',
+          800: '#7e6544',
+          900: '#67523a',
+          950: '#392c1d',
+        },
         brand: {
           50: '#f0f4ff',
           100: '#e0e9fe',
@@ -25,6 +38,7 @@ module.exports = {
         }
       },
       fontFamily: {
+        serif: ['var(--font-serif)', 'Georgia', 'serif'],
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'monospace'],
       },
