@@ -1,0 +1,51 @@
+@import "../components/ChromaGrid.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-black dark:text-slate-100 antialiased min-h-screen selection:bg-blue-500 selection:text-white transition-colors duration-300;
+  }
+}
+
+/* Glassmorphic & Custom Utilities */
+.glass-panel {
+  @apply bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-2xl shadow-xl shadow-slate-950/5 dark:shadow-black/60 transition-all duration-300;
+}
+
+.glass-panel-hover {
+  @apply transition-all duration-300 hover:border-white/80 dark:hover:border-white/25 hover:bg-white/55 dark:hover:bg-black/55 hover:shadow-2xl hover:-translate-y-0.5;
+}
+
+.glass-card {
+  @apply bg-white/30 dark:bg-black/30 backdrop-blur-md border border-white/40 dark:border-white/10 rounded-xl shadow-lg transition-all duration-200;
+}
+
+.glass-card-hover {
+  @apply hover:bg-white/45 dark:hover:bg-black/45 hover:border-white/60 dark:hover:border-white/20 hover:shadow-xl hover:-translate-y-0.5;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.1);
+}
+.dark ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(64, 64, 64, 0.8);
+}
