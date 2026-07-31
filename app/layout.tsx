@@ -29,6 +29,11 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "ELYON TRADERS — The Most High",
   description: "Elyon Traders official enterprise portal for employee session attendance logging and order profit calibration.",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/icon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
