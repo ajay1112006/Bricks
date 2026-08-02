@@ -153,6 +153,156 @@ let mockOrders: MockOrder[] = [
   }
 ];
 
+export interface MockMaterial {
+  materialId: string;
+  name: string;
+  category: string;
+  date: string;
+  totalCost: number;
+  amountPaid: number;
+  amountDue: number;
+  paymentStatus: "Paid" | "Partial" | "Pending";
+  supplier?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface MockTruckService {
+  truckId: string;
+  vehicleNumber: string;
+  driverName: string;
+  date: string;
+  quantity: number;
+  rate: number;
+  totalPrice: number;
+  amountPaid: number;
+  amountDue: number;
+  paymentStatus: "Paid" | "Partial" | "Pending";
+  tripDetails?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+let mockMaterials: MockMaterial[] = [
+  {
+    materialId: "MAT-101",
+    name: "Industrial Heavy Machinery Oil",
+    category: "Oil",
+    date: today,
+    totalCost: 15400,
+    amountPaid: 10000,
+    amountDue: 5400,
+    paymentStatus: "Partial",
+    supplier: "Castrol Industrial Supplies",
+    notes: "200L Drum for Hydraulic Brick Presses",
+    createdAt: new Date().toISOString()
+  },
+  {
+    materialId: "MAT-102",
+    name: "Hardwood Timber Pallets & Beams",
+    category: "Wood",
+    date: today,
+    totalCost: 28500,
+    amountPaid: 28500,
+    amountDue: 0,
+    paymentStatus: "Paid",
+    supplier: "Evergreen Timber Works",
+    notes: "150 Pallets for brick curing and stacking",
+    createdAt: new Date().toISOString()
+  },
+  {
+    materialId: "MAT-103",
+    name: "High-Grade Diesel Fuel (Site Generators)",
+    category: "Diesel",
+    date: today,
+    totalCost: 42000,
+    amountPaid: 20000,
+    amountDue: 22000,
+    paymentStatus: "Partial",
+    supplier: "Apex Energy & Fuels",
+    notes: "500 Liters for kiln generators & excavators",
+    createdAt: new Date().toISOString()
+  }
+];
+
+let mockTrucks: MockTruckService[] = [
+  {
+    truckId: "TRK-501",
+    vehicleNumber: "TN-38-AX-2094",
+    driverName: "Ramesh Kumar (Speedy Transport)",
+    date: today,
+    quantity: 2.6,
+    rate: 3000,
+    totalPrice: 7800, // 2.6 * 3000
+    amountPaid: 5000,
+    amountDue: 2800,
+    paymentStatus: "Partial",
+    tripDetails: "2.6 trips of red clay transport to kiln site",
+    notes: "Calculated as 2.6 x 3,000 = ₹7,800",
+    createdAt: new Date().toISOString()
+  },
+  {
+    truckId: "TRK-502",
+    vehicleNumber: "TN-37-BY-8812",
+    driverName: "Suresh Logistics",
+    date: today,
+    quantity: 4,
+    rate: 4500,
+    totalPrice: 18000,
+    amountPaid: 18000,
+    amountDue: 0,
+    paymentStatus: "Paid",
+    tripDetails: "4 full loads of finished interlocking bricks delivered to Horizon site",
+    notes: "Express highway freight fee included",
+    createdAt: new Date().toISOString()
+  }
+];
+
+export interface MockLaborWage {
+  name: string;
+  rate: number;
+  hours: number;
+  total: number;
+}
+
+export interface MockHoursRent {
+  rentId: string;
+  date: string;
+  partyName: string;
+  pricePerHour: number;
+  hours: number;
+  totalAmount: number;
+  padiPaid: number;
+  netBalance: number;
+  laborWages: MockLaborWage[];
+  totalLaborCost: number;
+  netProfitMargin: number;
+  createdAt: string;
+}
+
+let mockHoursRents: MockHoursRent[] = [
+  {
+    rentId: "RENT-901",
+    date: "2026-08-01",
+    partyName: "Selvaraj",
+    pricePerHour: 1300,
+    hours: 8,
+    totalAmount: 10400, // 1300 * 8
+    padiPaid: 3000,
+    netBalance: 7400, // 10400 - 3000
+    laborWages: [
+      { name: "Operator", rate: 140, hours: 8, total: 1120 },
+      { name: "Lab-1", rate: 130, hours: 8, total: 1040 },
+      { name: "Lab-2", rate: 130, hours: 8, total: 1040 },
+      { name: "Lab-3", rate: 130, hours: 8, total: 1040 },
+      { name: "Lab-4", rate: 130, hours: 8, total: 1040 }
+    ],
+    totalLaborCost: 5280, // 1120 + 4*1040
+    netProfitMargin: 5120, // 10400 - 5280
+    createdAt: new Date().toISOString()
+  }
+];
+
 export const memoryStore = {
   getEmployees: () => mockEmployees,
   setEmployees: (employees: MockEmployee[]) => { mockEmployees = employees; },
@@ -194,7 +344,6 @@ export const memoryStore = {
     mockOrders = mockOrders.map(o => {
       if (o.orderId === orderId) {
         const updated = { ...o, ...updates };
-        // Recalculate profit figures
         const totalCosts = (updated.costs.materials || 0) + (updated.costs.labor || 0) + (updated.costs.overhead || 0) + (updated.costs.shipping || 0);
         const netProfit = (updated.revenue || 0) - totalCosts + (updated.marginAdjustment || 0);
         const profitMarginPercent = updated.revenue > 0 ? (netProfit / updated.revenue) * 100 : 0;
@@ -211,7 +360,87 @@ export const memoryStore = {
   deleteOrder: (orderId: string) => {
     mockOrders = mockOrders.filter(o => o.orderId !== orderId);
   },
+
+  // --- MATERIALS ---
+  getMaterials: () => mockMaterials,
+  getMaterialById: (id: string) => mockMaterials.find(m => m.materialId === id),
+  addMaterial: (mat: MockMaterial) => {
+    mockMaterials = [mat, ...mockMaterials];
+    return mat;
+  },
+  updateMaterial: (id: string, updates: Partial<MockMaterial>) => {
+    mockMaterials = mockMaterials.map(m => {
+      if (m.materialId === id) {
+        const updated = { ...m, ...updates };
+        const totalCost = updated.totalCost ?? 0;
+        const amountPaid = updated.amountPaid ?? 0;
+        const amountDue = Math.max(0, totalCost - amountPaid);
+        let paymentStatus: "Paid" | "Partial" | "Pending" = "Pending";
+        if (amountPaid >= totalCost && totalCost > 0) paymentStatus = "Paid";
+        else if (amountPaid > 0) paymentStatus = "Partial";
+
+        return {
+          ...updated,
+          amountDue,
+          paymentStatus
+        };
+      }
+      return m;
+    });
+    return mockMaterials.find(m => m.materialId === id);
+  },
+  deleteMaterial: (id: string) => {
+    mockMaterials = mockMaterials.filter(m => m.materialId !== id);
+  },
+
+  // --- TRUCK SERVICES ---
+  getTrucks: () => mockTrucks,
+  getTruckById: (id: string) => mockTrucks.find(t => t.truckId === id),
+  addTruck: (trk: MockTruckService) => {
+    mockTrucks = [trk, ...mockTrucks];
+    return trk;
+  },
+  updateTruck: (id: string, updates: Partial<MockTruckService>) => {
+    mockTrucks = mockTrucks.map(t => {
+      if (t.truckId === id) {
+        const updated = { ...t, ...updates };
+        const quantity = updated.quantity ?? 0;
+        const rate = updated.rate ?? 0;
+        const totalPrice = updated.totalPrice !== undefined ? updated.totalPrice : (quantity * rate);
+        const amountPaid = updated.amountPaid ?? 0;
+        const amountDue = Math.max(0, totalPrice - amountPaid);
+        let paymentStatus: "Paid" | "Partial" | "Pending" = "Pending";
+        if (amountPaid >= totalPrice && totalPrice > 0) paymentStatus = "Paid";
+        else if (amountPaid > 0) paymentStatus = "Partial";
+
+        return {
+          ...updated,
+          totalPrice,
+          amountDue,
+          paymentStatus
+        };
+      }
+      return t;
+    });
+    return mockTrucks.find(t => t.truckId === id);
+  },
+  deleteTruck: (id: string) => {
+    mockTrucks = mockTrucks.filter(t => t.truckId !== id);
+  },
+
+  // --- HOURS RENT & LABOR SPLITTER ---
+  getHoursRents: () => mockHoursRents,
+  addHoursRent: (rent: MockHoursRent) => {
+    mockHoursRents = [rent, ...mockHoursRents];
+    return rent;
+  },
+  deleteHoursRent: (id: string) => {
+    mockHoursRents = mockHoursRents.filter(r => r.rentId !== id);
+  },
+
   resetToDefaults: () => {
     // re-initialize seed
   }
 };
+
+

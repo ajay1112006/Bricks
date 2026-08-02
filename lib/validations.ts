@@ -57,3 +57,47 @@ export const CalibrationSchemaValidation = z.object({
   marginAdjustment: z.number(),
   notes: z.string().optional(),
 });
+
+// Material validation schema
+export const MaterialSchemaValidation = z.object({
+  name: z.string().min(1, "Material name required"),
+  category: z.string().default("General"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+  totalCost: z.number().nonnegative("Total cost cannot be negative"),
+  amountPaid: z.number().nonnegative("Amount paid cannot be negative").default(0),
+  supplier: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+// Truck Service validation schema
+export const TruckServiceSchemaValidation = z.object({
+  vehicleNumber: z.string().min(1, "Vehicle/Truck number required"),
+  driverName: z.string().min(1, "Driver/Vendor name required"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+  quantity: z.number().positive("Quantity/Trips must be greater than 0"),
+  rate: z.number().nonnegative("Rate cannot be negative"),
+  totalPrice: z.number().nonnegative().optional(), // if omitted, quantity * rate is used
+  amountPaid: z.number().nonnegative("Amount paid cannot be negative").default(0),
+  tripDetails: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+// Labor Wage item validation
+export const LaborWageSchemaValidation = z.object({
+  name: z.string().min(1, "Labor/Operator name required"),
+  rate: z.number().nonnegative("Rate cannot be negative"),
+  hours: z.number().nonnegative("Hours cannot be negative"),
+  total: z.number().nonnegative().optional(),
+});
+
+// Hours Rent validation schema
+export const HoursRentSchemaValidation = z.object({
+  date: z.string().min(1, "Date required"),
+  partyName: z.string().min(1, "Party name required"),
+  pricePerHour: z.number().nonnegative("Price per hour cannot be negative"),
+  hours: z.number().positive("Hours must be greater than 0"),
+  padiPaid: z.number().nonnegative("Padi paid cannot be negative").default(0),
+  laborWages: z.array(LaborWageSchemaValidation).default([]),
+});
+
+

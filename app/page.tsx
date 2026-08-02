@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarCheck2, Receipt, Phone, Mail, ArrowRight, ShieldCheck, Sparkles, Building2 } from "lucide-react";
+import { CalendarCheck2, Receipt, Phone, Mail, ArrowRight, ShieldCheck, Sparkles, Building2, Truck, FileText } from "lucide-react";
 import { handleCardMouseMove } from "@/lib/useSpotlight";
 import TransparentLogo from "@/components/TransparentLogo";
 import SparkleGoldTitle from "@/components/SparkleGoldTitle";
@@ -31,7 +31,7 @@ export default function HomePage() {
         </div>
 
         <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed font-sans">
-          Official enterprise operations & financial intelligence hub. Streamlined daily 4-session employee attendance tracking and real-time order P&L profit calibration.
+          Official enterprise operations & financial intelligence hub. Streamlined daily 4-session employee attendance tracking, real-time order P&L profit calibration, and raw materials & truck logistics.
         </p>
       </section>
 
@@ -108,7 +108,7 @@ export default function HomePage() {
       </section>
 
       {/* Main Module Navigation Cards */}
-      <section className="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Module 1: Attendance Tracker */}
         <div
           onMouseMove={handleCardMouseMove}
@@ -126,11 +126,11 @@ export default function HomePage() {
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">4 Daily Sessions</span>
               </div>
-              <h3 className="text-2xl font-serif font-bold text-slate-900 dark:text-slate-100">
-                Employee Attendance Tracker
+              <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-slate-100">
+                Attendance Tracker
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Log employee attendance across 4 distinct daily shift sessions. Instant Present/Absent toggles, session summaries, and staff roster management.
+                Log employee attendance across 4 daily shift sessions. Rapid Present/Absent toggles & roster management.
               </p>
             </div>
           </div>
@@ -140,7 +140,7 @@ export default function HomePage() {
               href="/attendance"
               className="inline-flex items-center justify-between w-full px-5 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-sm shadow-lg shadow-amber-600/20 transition-all group"
             >
-              <span>Access Attendance System</span>
+              <span>Access Attendance</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
@@ -163,11 +163,11 @@ export default function HomePage() {
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Itemized P&L</span>
               </div>
-              <h3 className="text-2xl font-serif font-bold text-slate-900 dark:text-slate-100">
-                Billing & Profit Monitor
+              <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-slate-100">
+                Billing & P&L Monitor
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Order lifecycle management, expense allocation tracking (materials, labor, overhead, shipping), and manual P&L profit calibration.
+                Order lifecycle management, expense allocation (materials, labor, overhead), and P&L profit calibration.
               </p>
             </div>
           </div>
@@ -177,7 +177,81 @@ export default function HomePage() {
               href="/billing"
               className="inline-flex items-center justify-between w-full px-5 py-3 rounded-xl bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white font-semibold text-sm shadow-lg shadow-amber-700/20 transition-all group"
             >
-              <span>Access Billing & P&L Monitor</span>
+              <span>Access Billing & P&L</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Module 3: Materials & Trucking Logistics */}
+        <div
+          onMouseMove={handleCardMouseMove}
+          className="glass-panel glass-panel-hover p-6 sm:p-8 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
+        >
+          <div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-5">
+              <Truck className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-semibold">
+                  Module 03
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Logistics & Freight</span>
+              </div>
+              <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-slate-100">
+                Materials & Trucking
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                Log materials (oil, wood, diesel), track paid/due amounts, and calculate custom formula truck freight (e.g. 2.6 × ₹3,000).
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
+            <Link
+              href="/materials"
+              className="inline-flex items-center justify-between w-full px-5 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-sm shadow-lg shadow-amber-600/20 transition-all group"
+            >
+              <span>Access Materials & Freight</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Module 4: Financial Ledger & GST Bills */}
+        <div
+          onMouseMove={handleCardMouseMove}
+          className="glass-panel glass-panel-hover p-6 sm:p-8 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
+        >
+          <div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-5">
+              <FileText className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-semibold">
+                  Module 04
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">GST & Analytics</span>
+              </div>
+              <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-slate-100">
+                Financial Ledger & Bills
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                Filter customer paid vs pending dues, generate GST Tax Bills with tax breakdowns, and export full Excel financial analytics.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
+            <Link
+              href="/transactions"
+              className="inline-flex items-center justify-between w-full px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold text-sm shadow-lg shadow-emerald-600/20 transition-all group"
+            >
+              <span>Access Ledger & GST Bills</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
