@@ -10,7 +10,7 @@ import {
   Search,
   Filter,
   FileSpreadsheet,
-  Printer,
+  Download,
   CheckCircle2,
   Clock,
   AlertCircle,
@@ -552,10 +552,10 @@ export default function TransactionsPage() {
                         <button
                           onClick={() => handleOpenGSTBill(item)}
                           className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs font-medium hover:bg-amber-500/20 transition-all flex items-center space-x-1"
-                          title="Generate GST Bill PDF"
+                          title="Download GST Bill PDF"
                         >
-                          <Printer className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                          <span>GST Bill</span>
+                          <Download className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>Download Bill</span>
                         </button>
 
                         {/* Settle Payment Button */}

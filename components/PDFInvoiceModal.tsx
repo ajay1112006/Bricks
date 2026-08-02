@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef } from "react";
-import { X, Printer, Download, ShieldCheck, CheckCircle2, Clock } from "lucide-react";
+import { X, Download, ShieldCheck, CheckCircle2, Clock } from "lucide-react";
 import TransparentLogo from "./TransparentLogo";
+import { downloadElementAsPDF } from "@/lib/pdfGenerator";
 
 export interface InvoiceData {
   invoiceNo: string;
@@ -41,54 +42,12 @@ export default function PDFInvoiceModal({ isOpen, onClose, invoice }: PDFInvoice
   const grandTotal = subtotal + cgst + sgst;
   const amountDue = Math.max(0, grandTotal - invoice.amountPaid);
 
-  const handlePrint = () => {
+  const handleDownload = async () => {
     const printContent = printRef.current;
     if (!printContent) return;
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Please allow popups to print/download the PDF invoice.");
-      return;
-    }
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Tax Invoice ${invoice.invoiceNo} - Elyon Traders</title>
-          <style>
-            @media print {
-              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; color: #1e293b; }
-              .no-print { display: none !important; }
-              .page-break { page-break-after: always; }
-            }
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #0f172a; background: #ffffff; }
-            .header-table { width: 100%; border-bottom: 2px solid #b45309; padding-bottom: 15px; margin-bottom: 20px; }
-            .brand-title { font-size: 26px; font-weight: bold; color: #92400e; font-family: serif; letter-spacing: 2px; }
-            .brand-subtitle { font-size: 11px; letter-spacing: 4px; color: #b45309; font-weight: 600; text-transform: uppercase; }
-            .gst-tag { display: inline-block; background: #fef3c7; border: 1px solid #f59e0b; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; color: #78350f; }
-            .meta-table { width: 100%; margin-bottom: 25px; }
-            .meta-table td { vertical-align: top; }
-            .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-            .invoice-table th { background: #fef3c7; color: #78350f; text-align: left; padding: 10px; border: 1px solid #fde68a; font-size: 13px; font-family: serif; }
-            .invoice-table td { padding: 10px; border: 1px solid #e2e8f0; font-size: 13px; }
-            .total-box { width: 300px; float: right; margin-bottom: 25px; font-size: 13px; }
-            .total-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #e2e8f0; }
-            .total-grand { font-weight: bold; font-size: 16px; color: #78350f; border-top: 2px solid #b45309; border-bottom: 2px solid #b45309; padding: 8px 0; }
-            .due-box { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 10px; border-radius: 8px; font-weight: bold; text-align: center; margin-top: 10px; }
-            .footer-sig { margin-top: 50px; text-align: right; font-size: 12px; }
-            .sig-line { border-top: 1px dashed #64748b; width: 180px; margin-left: auto; margin-top: 40px; }
-          </style>
-        </head>
-        <body>
-          ${printContent.innerHTML}
-          <script>
-            window.onload = function() { window.print(); window.close(); }
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    const filename = `Invoice_${invoice.invoiceNo.replace(/[^a-zA-Z0-9-]/g, "_")}.pdf`;
+    await downloadElementAsPDF(printContent, filename);
   };
 
   return (
@@ -103,11 +62,11 @@ export default function PDFInvoiceModal({ isOpen, onClose, invoice }: PDFInvoice
           </div>
           <div className="flex items-center space-x-3">
             <button
-              onClick={handlePrint}
+              onClick={handleDownload}
               className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-amber-600/20 flex items-center space-x-2 transition-all"
             >
-              <Printer className="w-4 h-4" />
-              <span>Print / Download PDF</span>
+              <Download className="w-4 h-4" />
+              <span>Download PDF Invoice</span>
             </button>
             <button
               onClick={onClose}

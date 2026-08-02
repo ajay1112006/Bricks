@@ -108,11 +108,11 @@ export default function HomePage() {
       </section>
 
       {/* Main Module Navigation Cards */}
-      <section className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
         {/* Module 1: Attendance Tracker */}
         <div
           onMouseMove={handleCardMouseMove}
-          className="glass-panel glass-panel-hover p-6 sm:p-8 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
+          className="glass-panel glass-panel-hover p-5 lg:p-6 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
         >
           <div>
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-5">
@@ -129,19 +129,16 @@ export default function HomePage() {
               <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-slate-100">
                 Attendance Tracker
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Log employee attendance across 4 daily shift sessions. Rapid Present/Absent toggles & roster management.
-              </p>
             </div>
           </div>
 
           <div className="mt-8 pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
             <Link
               href="/attendance"
-              className="inline-flex items-center justify-between w-full px-5 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-sm shadow-lg shadow-amber-600/20 transition-all group"
+              className="inline-flex items-center justify-between w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-amber-600/20 transition-all group whitespace-nowrap gap-1"
             >
-              <span>Access Attendance</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <span className="whitespace-nowrap">Access Attendance</span>
+              <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>
@@ -149,7 +146,7 @@ export default function HomePage() {
         {/* Module 2: Billing & P&L Monitor */}
         <div
           onMouseMove={handleCardMouseMove}
-          className="glass-panel glass-panel-hover p-6 sm:p-8 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
+          className="glass-panel glass-panel-hover p-5 lg:p-6 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
         >
           <div>
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-5">
@@ -166,19 +163,16 @@ export default function HomePage() {
               <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-slate-100">
                 Billing & P&L Monitor
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Order lifecycle management, expense allocation (materials, labor, overhead), and P&L profit calibration.
-              </p>
             </div>
           </div>
 
           <div className="mt-8 pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
             <Link
               href="/billing"
-              className="inline-flex items-center justify-between w-full px-5 py-3 rounded-xl bg-gradient-to-r from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white font-semibold text-sm shadow-lg shadow-amber-700/20 transition-all group"
+              className="inline-flex items-center justify-between w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-amber-600/20 transition-all group whitespace-nowrap gap-1"
             >
-              <span>Access Billing & P&L</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <span className="whitespace-nowrap">Access Billing & P&L</span>
+              <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>
@@ -186,7 +180,7 @@ export default function HomePage() {
         {/* Module 3: Materials & Trucking Logistics */}
         <div
           onMouseMove={handleCardMouseMove}
-          className="glass-panel glass-panel-hover p-6 sm:p-8 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
+          className="glass-panel glass-panel-hover p-5 lg:p-6 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
         >
           <div>
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-5">
@@ -203,19 +197,16 @@ export default function HomePage() {
               <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-slate-100">
                 Materials & Trucking
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Log materials (oil, wood, diesel), track paid/due amounts, and calculate custom formula truck freight (e.g. 2.6 × ₹3,000).
-              </p>
             </div>
           </div>
 
           <div className="mt-8 pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
             <Link
               href="/materials"
-              className="inline-flex items-center justify-between w-full px-5 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-sm shadow-lg shadow-amber-600/20 transition-all group"
+              className="inline-flex items-center justify-between w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-amber-600/20 transition-all group whitespace-nowrap gap-1"
             >
-              <span>Access Materials & Freight</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <span className="whitespace-nowrap">Access Materials & Freight</span>
+              <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>
@@ -223,7 +214,7 @@ export default function HomePage() {
         {/* Module 4: Financial Ledger & GST Bills */}
         <div
           onMouseMove={handleCardMouseMove}
-          className="glass-panel glass-panel-hover p-6 sm:p-8 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
+          className="glass-panel glass-panel-hover p-5 lg:p-6 rounded-3xl flex flex-col justify-between border-amber-500/20 dark:border-amber-500/30"
         >
           <div>
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-5">
@@ -240,19 +231,16 @@ export default function HomePage() {
               <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-slate-100">
                 Financial Ledger & Bills
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Filter customer paid vs pending dues, generate GST Tax Bills with tax breakdowns, and export full Excel financial analytics.
-              </p>
             </div>
           </div>
 
           <div className="mt-8 pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
             <Link
               href="/transactions"
-              className="inline-flex items-center justify-between w-full px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold text-sm shadow-lg shadow-emerald-600/20 transition-all group"
+              className="inline-flex items-center justify-between w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-amber-600/20 transition-all group whitespace-nowrap gap-1"
             >
-              <span>Access Ledger & GST Bills</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <span className="whitespace-nowrap">Access Ledger & GST Bills</span>
+              <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>

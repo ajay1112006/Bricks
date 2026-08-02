@@ -7,7 +7,7 @@ import {
   DollarSign,
   Plus,
   Trash2,
-  Printer,
+  Download,
   Save,
   Search,
   CheckCircle2,
@@ -17,16 +17,28 @@ import {
   Sparkles,
   Users,
   Building2,
-  X
+  X,
+  UserPlus,
+  Check,
+  Briefcase
 } from "lucide-react";
 import { handleCardMouseMove } from "@/lib/useSpotlight";
-import TransparentLogo from "@/components/TransparentLogo";
+import { downloadElementAsPDF } from "@/lib/pdfGenerator";
 
 interface LaborWageItem {
+  id: string;
   name: string;
   rate: number;
   hours: number;
   total: number;
+}
+
+interface SystemEmployee {
+  _id?: string;
+  employeeId: string;
+  name: string;
+  role?: string;
+  department?: string;
 }
 
 interface HoursRentRecord {
@@ -56,12 +68,16 @@ export default function SplitterPage() {
 
   // Right Column: Operator & Labor List
   const [laborWages, setLaborWages] = useState<LaborWageItem[]>([
-    { name: "Operator", rate: 140, hours: 8, total: 1120 },
-    { name: "Lab-1", rate: 130, hours: 8, total: 1040 },
-    { name: "Lab-2", rate: 130, hours: 8, total: 1040 },
-    { name: "Lab-3", rate: 130, hours: 8, total: 1040 },
-    { name: "Lab-4", rate: 130, hours: 8, total: 1040 },
+    { id: "lab-op-1", name: "Operator", rate: 140, hours: 8, total: 1120 },
+    { id: "lab-1", name: "Lab-1", rate: 130, hours: 8, total: 1040 },
+    { id: "lab-2", name: "Lab-2", rate: 130, hours: 8, total: 1040 },
+    { id: "lab-3", name: "Lab-3", rate: 130, hours: 8, total: 1040 },
+    { id: "lab-4", name: "Lab-4", rate: 130, hours: 8, total: 1040 },
   ]);
+
+  // System employees roster
+  const [systemEmployees, setSystemEmployees] = useState<SystemEmployee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
   // Saved Records
   const [savedRecords, setSavedRecords] = useState<HoursRentRecord[]>([]);
@@ -75,6 +91,25 @@ export default function SplitterPage() {
   const [activeSlipRecord, setActiveSlipRecord] = useState<HoursRentRecord | null>(null);
   const slipPrintRef = useRef<HTMLDivElement>(null);
 
+  // Add Laborer Modal State
+  const [isAddLaborModalOpen, setIsAddLaborModalOpen] = useState(false);
+  const [newLaborName, setNewLaborName] = useState("");
+  const [newLaborRate, setNewLaborRate] = useState<number>(130);
+  const [newLaborHours, setNewLaborHours] = useState<number>(hours);
+  const [selectedSystemEmp, setSelectedSystemEmp] = useState<string>("");
+  
+  // New Employee Creation inside Modal
+  const [showCreateEmpSection, setShowCreateEmpSection] = useState(false);
+  const [empCreateName, setEmpCreateName] = useState("");
+  const [empCreateRole, setEmpCreateRole] = useState("Mason");
+  const [creatingEmp, setCreatingEmp] = useState(false);
+
+  // Toast / Feedback message
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Scroll ref for labor list
+  const laborListRef = useRef<HTMLDivElement>(null);
+
   // Calculated values
   const totalAmount = Number((pricePerHour * hours).toFixed(2));
   const netBalance = Math.max(0, Number((totalAmount - padiPaid).toFixed(2)));
@@ -82,6 +117,12 @@ export default function SplitterPage() {
   // Recalculate labor totals
   const totalLaborCost = laborWages.reduce((acc, curr) => acc + curr.rate * curr.hours, 0);
   const netProfitMargin = totalAmount - totalLaborCost;
+
+  // Show temporary toast message
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
 
   // Fetch saved records
   const fetchRecords = async () => {
@@ -99,8 +140,25 @@ export default function SplitterPage() {
     }
   };
 
+  // Fetch system employees roster
+  const fetchSystemEmployees = async () => {
+    setLoadingEmployees(true);
+    try {
+      const res = await fetch("/api/employees");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setSystemEmployees(data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
   useEffect(() => {
     fetchRecords();
+    fetchSystemEmployees();
   }, []);
 
   // Update hours for all laborers when top hours change
@@ -110,35 +168,128 @@ export default function SplitterPage() {
       prev.map((item) => ({
         ...item,
         hours: newHours,
-        total: item.rate * newHours,
+        total: Number((item.rate * newHours).toFixed(2)),
       }))
     );
+    setNewLaborHours(newHours);
+  };
+
+  // Scroll labor list container to bottom
+  const scrollToBottomLaborList = () => {
+    setTimeout(() => {
+      if (laborListRef.current) {
+        laborListRef.current.scrollTop = laborListRef.current.scrollHeight;
+      }
+    }, 100);
   };
 
   // Laborer row change
-  const handleLaborRowChange = (index: number, field: keyof LaborWageItem, val: any) => {
-    setLaborWages((prev) => {
-      const copy = [...prev];
-      const updatedItem = { ...copy[index], [field]: val };
-      updatedItem.total = Number((updatedItem.rate * updatedItem.hours).toFixed(2));
-      copy[index] = updatedItem;
-      return copy;
-    });
+  const handleLaborRowChange = (id: string, field: keyof LaborWageItem, val: any) => {
+    setLaborWages((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, [field]: val };
+        updated.total = Number((updated.rate * updated.hours).toFixed(2));
+        return updated;
+      })
+    );
   };
 
-  // Add new laborer row
-  const handleAddLaborRow = () => {
+  // Quick direct row add
+  const handleQuickAddLaborRow = () => {
     const nextNum = laborWages.filter((l) => l.name.startsWith("Lab-")).length + 1;
-    setLaborWages((prev) => [
-      ...prev,
-      { name: `Lab-${nextNum}`, rate: 130, hours: hours, total: 130 * hours },
-    ]);
+    const newId = `lab-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const newItem: LaborWageItem = {
+      id: newId,
+      name: `Lab-${nextNum}`,
+      rate: 130,
+      hours: hours,
+      total: 130 * hours,
+    };
+    setLaborWages((prev) => [...prev, newItem]);
+    scrollToBottomLaborList();
+    showToast(`Added Lab-${nextNum} to list`);
+  };
+
+  // Open Modal to Add Laborer
+  const handleOpenAddLaborModal = () => {
+    const nextNum = laborWages.filter((l) => l.name.startsWith("Lab-")).length + 1;
+    setNewLaborName(`Lab-${nextNum}`);
+    setNewLaborRate(130);
+    setNewLaborHours(hours);
+    setSelectedSystemEmp("");
+    setShowCreateEmpSection(false);
+    setIsAddLaborModalOpen(true);
+  };
+
+  // Select employee from system roster in modal
+  const handleSelectSystemEmp = (empName: string) => {
+    setSelectedSystemEmp(empName);
+    setNewLaborName(empName);
+  };
+
+  // Submit Add Laborer Modal
+  const handleAddLaborerSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nameToAdd = newLaborName.trim();
+    if (!nameToAdd) return;
+
+    const newId = `lab-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const newItem: LaborWageItem = {
+      id: newId,
+      name: nameToAdd,
+      rate: Number(newLaborRate) || 130,
+      hours: Number(newLaborHours) || hours,
+      total: Number((Number(newLaborRate || 130) * Number(newLaborHours || hours)).toFixed(2)),
+    };
+
+    setLaborWages((prev) => [...prev, newItem]);
+    setIsAddLaborModalOpen(false);
+    scrollToBottomLaborList();
+    showToast(`Added "${nameToAdd}" to labor wages breakdown`);
+  };
+
+  // Create new employee directly into system database
+  const handleCreateNewSystemEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!empCreateName.trim()) return;
+
+    setCreatingEmp(true);
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: empCreateName.trim(),
+          role: empCreateRole || "Laborer",
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Employee "${empCreateName.trim()}" added to database!`);
+        setNewLaborName(empCreateName.trim());
+        setSelectedSystemEmp(empCreateName.trim());
+        setEmpCreateName("");
+        setShowCreateEmpSection(false);
+        fetchSystemEmployees();
+      } else {
+        alert(data.error || "Failed to create employee");
+      }
+    } catch (err) {
+      console.error("Error creating employee:", err);
+    } finally {
+      setCreatingEmp(false);
+    }
   };
 
   // Delete laborer row
-  const handleDeleteLaborRow = (index: number) => {
-    if (laborWages.length <= 1) return;
-    setLaborWages((prev) => prev.filter((_, i) => i !== index));
+  const handleDeleteLaborRow = (id: string) => {
+    if (laborWages.length <= 1) {
+      alert("At least one laborer/operator row is required.");
+      return;
+    }
+    setLaborWages((prev) => prev.filter((item) => item.id !== id));
   };
 
   // Save Entry to Ledger
@@ -167,7 +318,7 @@ export default function SplitterPage() {
 
       const data = await res.json();
       if (data.success) {
-        alert("Hours Rent & Labor Splitter entry saved to Ledger successfully!");
+        showToast("Hours Rent & Labor Splitter entry saved to Ledger successfully!");
         fetchRecords();
       } else {
         alert(data.error || "Failed to save entry");
@@ -184,6 +335,7 @@ export default function SplitterPage() {
       const res = await fetch(`/api/hours-rent/${rentId}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
+        showToast("Entry deleted successfully.");
         fetchRecords();
       } else {
         alert(data.error || "Failed to delete record");
@@ -198,7 +350,6 @@ export default function SplitterPage() {
     if (record) {
       setActiveSlipRecord(record);
     } else {
-      // Create record from current form state
       setActiveSlipRecord({
         rentId: `RENT-PREVIEW`,
         date,
@@ -217,43 +368,15 @@ export default function SplitterPage() {
     setIsPrintModalOpen(true);
   };
 
-  // Trigger browser print for slip
-  const handlePrintSlip = () => {
+  // Download slip document as PDF (.pdf file)
+  const handleDownloadSlip = async () => {
     const content = slipPrintRef.current;
-    if (!content) return;
+    if (!content || !activeSlipRecord) return;
 
-    const printWin = window.open("", "_blank");
-    if (!printWin) {
-      alert("Please allow popups to print slip.");
-      return;
-    }
+    const partySanitized = activeSlipRecord.partyName.replace(/[^a-zA-Z0-9]/g, "_");
+    const filename = `Hours_Rent_Slip_${partySanitized}_${activeSlipRecord.date}.pdf`;
 
-    printWin.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Hours Rent & Labor Slip - Elyon Traders</title>
-          <style>
-            body { font-family: 'Courier New', Courier, monospace; padding: 25px; color: #000; background: #fff; width: 650px; margin: 0 auto; }
-            .border-box { border: 3px double #000; padding: 20px; }
-            .title { text-align: center; font-size: 22px; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px; }
-            .splitter-table { width: 100%; border-collapse: collapse; }
-            .splitter-table td { vertical-align: top; width: 50%; padding: 10px; }
-            .left-col { border-right: 2px solid #000; }
-            .field-row { margin-bottom: 12px; font-size: 14px; font-weight: bold; }
-            .line { border-bottom: 1.5px solid #000; margin: 10px 0; }
-            .grand-net { font-size: 18px; font-weight: bold; text-align: center; margin-top: 15px; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="border-box">
-            ${content.innerHTML}
-          </div>
-          <script>window.onload = function() { window.print(); window.close(); }</script>
-        </body>
-      </html>
-    `);
-    printWin.document.close();
+    await downloadElementAsPDF(content, filename);
   };
 
   const filteredRecords = savedRecords.filter(
@@ -264,13 +387,30 @@ export default function SplitterPage() {
   );
 
   return (
-    <div className="space-y-8 py-4 sm:py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="space-y-8 py-4 sm:py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      {/* Dynamic Datalist for Employee Auto-complete */}
+      <datalist id="employee-roster-list">
+        {systemEmployees.map((emp, i) => (
+          <option key={emp._id || emp.employeeId || i} value={emp.name}>
+            {emp.name} {emp.role ? `(${emp.role})` : ""}
+          </option>
+        ))}
+      </datalist>
+
+      {/* Floating Toast Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-amber-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-2 border border-amber-400/30 animate-bounce">
+          <CheckCircle2 className="w-5 h-5 text-amber-200" />
+          <span className="text-sm font-semibold">{toastMsg}</span>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gradient-to-r from-amber-900/20 via-amber-600/10 to-transparent p-6 rounded-3xl border border-amber-500/30 backdrop-blur-xl">
         <div className="space-y-1">
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-semibold">
             <Clock className="w-3.5 h-3.5" />
-            <span>Interactive Handwritten Design Layout</span>
+            <span>Interactive Dual-Column Machinery & Wage Allocator</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900 dark:text-amber-100">
             Hours Rent & Labor Splitter
@@ -282,11 +422,19 @@ export default function SplitterPage() {
 
         <div className="flex items-center space-x-3 w-full md:w-auto">
           <button
+            onClick={handleOpenAddLaborModal}
+            className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 text-xs sm:text-sm font-semibold border border-amber-500/30 transition-all"
+          >
+            <UserPlus className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <span>+ Add Laborer</span>
+          </button>
+
+          <button
             onClick={() => handleOpenPrintSlip()}
             className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-amber-600/20 transition-all"
           >
-            <Printer className="w-4 h-4" />
-            <span>Print Current Slip</span>
+            <Download className="w-4 h-4" />
+            <span>Download Current Slip</span>
           </button>
         </div>
       </div>
@@ -379,11 +527,11 @@ export default function SplitterPage() {
 
                   <div>
                     <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-1">
-                      Hours Worked (8)
+                      Hours Worked ({hours}h)
                     </label>
                     <input
                       type="number"
-                      min="1"
+                      min="0.5"
                       step="0.5"
                       required
                       value={hours}
@@ -439,32 +587,50 @@ export default function SplitterPage() {
                   </h3>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddLaborRow}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-500/20 flex items-center space-x-1"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Laborer</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleQuickAddLaborRow}
+                    className="px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-500/20 transition flex items-center space-x-1"
+                    title="Quick add lab row"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Quick Row</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenAddLaborModal}
+                    className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow flex items-center space-x-1 transition"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Add Laborer</span>
+                  </button>
+                </div>
               </div>
 
               {/* Dynamic Laborer Rows */}
-              <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
-                {laborWages.map((item, idx) => (
+              <div
+                ref={laborListRef}
+                className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1 scroll-smooth"
+              >
+                {laborWages.map((item) => (
                   <div
-                    key={idx}
-                    className="p-3 rounded-2xl bg-white/60 dark:bg-black/40 border border-amber-500/20 flex items-center justify-between gap-2"
+                    key={item.id}
+                    className="p-3 rounded-2xl bg-white/60 dark:bg-black/40 border border-amber-500/20 flex items-center justify-between gap-2 transition-all hover:border-amber-500/40"
                   >
-                    {/* Name */}
-                    <input
-                      type="text"
-                      required
-                      value={item.name}
-                      onChange={(e) => handleLaborRowChange(idx, "name", e.target.value)}
-                      placeholder="Operator / Lab-1"
-                      className="w-28 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-500/30 text-xs font-bold text-slate-900 dark:text-amber-100 focus:outline-none"
-                    />
+                    {/* Name Input with Autocomplete Datalist */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        list="employee-roster-list"
+                        value={item.name}
+                        onChange={(e) => handleLaborRowChange(item.id, "name", e.target.value)}
+                        placeholder="Operator / Laborer"
+                        className="w-32 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-500/30 text-xs font-bold text-slate-900 dark:text-amber-100 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
 
                     {/* Formula Inputs (Rate x Hours) */}
                     <div className="flex items-center space-x-1 font-mono text-xs">
@@ -472,30 +638,32 @@ export default function SplitterPage() {
                         type="number"
                         min="0"
                         value={item.rate}
-                        onChange={(e) => handleLaborRowChange(idx, "rate", Number(e.target.value))}
-                        className="w-16 px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold"
+                        onChange={(e) => handleLaborRowChange(item.id, "rate", Number(e.target.value))}
+                        className="w-16 px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold text-slate-900 dark:text-amber-100"
                       />
-                      <span>×</span>
+                      <span className="text-slate-400">×</span>
                       <input
                         type="number"
-                        min="1"
+                        min="0.5"
+                        step="0.5"
                         value={item.hours}
-                        onChange={(e) => handleLaborRowChange(idx, "hours", Number(e.target.value))}
-                        className="w-12 px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold"
+                        onChange={(e) => handleLaborRowChange(item.id, "hours", Number(e.target.value))}
+                        className="w-12 px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold text-slate-900 dark:text-amber-100"
                       />
-                      <span>hrs =</span>
+                      <span className="text-slate-400">h =</span>
                     </div>
 
                     {/* Total Output */}
-                    <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs">
+                    <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs min-w-[60px] text-right">
                       ₹{(item.rate * item.hours).toLocaleString()}
                     </span>
 
                     {/* Delete button */}
                     <button
                       type="button"
-                      onClick={() => handleDeleteLaborRow(idx)}
-                      className="p-1 text-slate-400 hover:text-rose-500 rounded"
+                      onClick={() => handleDeleteLaborRow(item.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
+                      title="Remove laborer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -506,7 +674,7 @@ export default function SplitterPage() {
               {/* Total Labor Wages Breakdown */}
               <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
                 <div className="flex justify-between items-center text-xs font-serif font-bold text-slate-700 dark:text-slate-300">
-                  <span>Total Labor Expenses:</span>
+                  <span>Total Labor Expenses ({laborWages.length} personnel):</span>
                   <span className="font-mono text-base text-rose-600 dark:text-rose-400 font-bold">
                     ₹{totalLaborCost.toLocaleString()}
                   </span>
@@ -545,8 +713,8 @@ export default function SplitterPage() {
                 onClick={() => handleOpenPrintSlip()}
                 className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-amber-500/20 text-white dark:text-amber-200 border border-amber-500/30 text-xs font-semibold flex items-center justify-center space-x-2"
               >
-                <Printer className="w-4 h-4" />
-                <span>Preview Slip</span>
+                <Download className="w-4 h-4" />
+                <span>Download Slip Preview</span>
               </button>
 
               <button
@@ -651,9 +819,9 @@ export default function SplitterPage() {
                           <button
                             onClick={() => handleOpenPrintSlip(item)}
                             className="p-1.5 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-all"
-                            title="Print Slip"
+                            title="Download Slip"
                           >
-                            <Printer className="w-4 h-4" />
+                            <Download className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteRecord(item.rentId)}
@@ -673,6 +841,199 @@ export default function SplitterPage() {
         </div>
       </div>
 
+      {/* --- ADD LABORER MODAL --- */}
+      {isAddLaborModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="glass-panel w-full max-w-lg p-6 sm:p-7 rounded-3xl border-amber-500/40 relative shadow-2xl bg-white dark:bg-[#0E0C12] text-slate-900 dark:text-amber-100">
+            <button
+              onClick={() => setIsAddLaborModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 dark:hover:text-amber-200 transition p-1.5 rounded-full hover:bg-amber-500/10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-5 border-b border-amber-500/20 pb-4">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-serif font-bold text-amber-900 dark:text-amber-100">
+                  Add Laborer / Operator Allocation
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Select from system staff roster or enter custom personnel wage details
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddLaborerSubmit} className="space-y-4">
+              {/* Select from system roster pills if available */}
+              {systemEmployees.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-amber-200 flex items-center justify-between">
+                    <span>Quick Select System Employee Roster:</span>
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">
+                      ({systemEmployees.length} staff)
+                    </span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1.5 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                    {systemEmployees.map((emp) => (
+                      <button
+                        key={emp._id || emp.employeeId}
+                        type="button"
+                        onClick={() => handleSelectSystemEmp(emp.name)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition flex items-center space-x-1 ${
+                          selectedSystemEmp === emp.name
+                            ? "bg-amber-600 text-white shadow"
+                            : "bg-white dark:bg-slate-900 text-slate-700 dark:text-amber-200 border border-amber-500/20 hover:border-amber-500/50"
+                        }`}
+                      >
+                        <UserCheck className="w-3 h-3" />
+                        <span>{emp.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Laborer Name */}
+              <div className="space-y-1">
+                <label className="text-xs font-serif font-bold text-slate-700 dark:text-amber-200">
+                  Laborer / Operator Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  list="employee-roster-list"
+                  placeholder="e.g. Ramesh / Lab-5"
+                  value={newLaborName}
+                  onChange={(e) => {
+                    setNewLaborName(e.target.value);
+                    setSelectedSystemEmp("");
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/90 dark:bg-black/60 border border-amber-500/30 text-sm font-bold focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {/* Wage Calculation (Rate x Hours) */}
+              <div className="grid grid-cols-2 gap-3 bg-amber-500/10 p-3.5 rounded-2xl border border-amber-500/20">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1">
+                    Wage Rate (₹/hr)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="5"
+                    required
+                    value={newLaborRate}
+                    onChange={(e) => setNewLaborRate(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-black/60 border border-amber-500/30 text-sm font-mono font-bold text-slate-900 dark:text-amber-100 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1">
+                    Hours Worked
+                  </label>
+                  <input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    required
+                    value={newLaborHours}
+                    onChange={(e) => setNewLaborHours(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-black/60 border border-amber-500/30 text-sm font-mono font-bold text-slate-900 dark:text-amber-100 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Calculated preview */}
+              <div className="flex items-center justify-between px-2 text-xs font-mono">
+                <span className="text-slate-500 dark:text-slate-400">Total Wage Allocation:</span>
+                <span className="text-base font-bold text-amber-600 dark:text-amber-300">
+                  ₹{(Number(newLaborRate || 0) * Number(newLaborHours || 0)).toLocaleString()}
+                </span>
+              </div>
+
+              {/* Toggle Add to System Database Roster */}
+              <div className="pt-2 border-t border-amber-500/20">
+                {!showCreateEmpSection ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateEmpSection(true)}
+                    className="text-xs text-amber-600 dark:text-amber-400 hover:underline flex items-center space-x-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Want to add this person to permanent System DB Employee roster?</span>
+                  </button>
+                ) : (
+                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                        Create New System Employee Roster Record
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateEmpSection(false)}
+                        className="text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Employee Name"
+                        value={empCreateName}
+                        onChange={(e) => setEmpCreateName(e.target.value)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-black/60 border border-amber-500/30 text-xs font-bold"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Role (e.g. Mason / Helper)"
+                        value={empCreateRole}
+                        onChange={(e) => setEmpCreateRole(e.target.value)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-black/60 border border-amber-500/30 text-xs"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={creatingEmp || !empCreateName.trim()}
+                      onClick={handleCreateNewSystemEmployee}
+                      className="w-full py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold disabled:opacity-50 transition"
+                    >
+                      {creatingEmp ? "Adding to DB..." : "Save to Employee Database"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-amber-500/20">
+                <button
+                  type="button"
+                  onClick={() => setIsAddLaborModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-amber-500/10 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newLaborName.trim()}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/20 transition flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add to Wage Breakdown</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* --- PRINTABLE SLIP MODAL (Formatted exactly like handwritten design) --- */}
       {isPrintModalOpen && activeSlipRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -683,11 +1044,11 @@ export default function SplitterPage() {
               </h2>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={handlePrintSlip}
+                  onClick={handleDownloadSlip}
                   className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold flex items-center space-x-1.5 shadow"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print Slip</span>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Slip</span>
                 </button>
                 <button
                   onClick={() => setIsPrintModalOpen(false)}
