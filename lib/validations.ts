@@ -39,10 +39,18 @@ export const CostsSchemaValidation = z.object({
   shipping: z.number().nonnegative("Shipping cost cannot be negative"),
 });
 
+export interface CreateOrderSchemaValidation {
+  orderId: string;
+  customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
+}
+
 export const CreateOrderSchemaValidation = z.object({
   orderId: z.string().min(3, "Order ID required"),
   customerName: z.string().min(2, "Customer name required"),
-  customerEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+  customerPhone: z.string().optional().or(z.literal("")),
+  customerEmail: z.string().optional().or(z.literal("")),
   items: z.array(OrderItemSchemaValidation).min(1, "At least one item is required"),
   status: z.enum(["Draft", "In Progress", "Delivered", "Cancelled"]).default("In Progress"),
   costs: CostsSchemaValidation,

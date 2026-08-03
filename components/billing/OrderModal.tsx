@@ -14,7 +14,7 @@ export default function OrderModal({ isOpen, onClose, onOrderSaved }: OrderModal
 
   const [orderId, setOrderId] = useState<string>(`ORD-${Math.floor(1000 + Math.random() * 9000)}`);
   const [customerName, setCustomerName] = useState<string>("");
-  const [customerEmail, setCustomerEmail] = useState<string>("");
+  const [customerPhone, setCustomerPhone] = useState<string>("");
   const [status, setStatus] = useState<"Draft" | "In Progress" | "Delivered" | "Cancelled">("In Progress");
   const [items, setItems] = useState<
     { name: string; quantity: number; unitPrice: number; costPrice: number }[]
@@ -72,7 +72,8 @@ export default function OrderModal({ isOpen, onClose, onOrderSaved }: OrderModal
       const payload = {
         orderId,
         customerName,
-        customerEmail,
+        customerPhone,
+        customerEmail: customerPhone,
         status,
         items,
         costs,
@@ -173,12 +174,12 @@ export default function OrderModal({ isOpen, onClose, onOrderSaved }: OrderModal
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Customer Email</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Customer Mobile Number</label>
               <input
-                type="email"
-                placeholder="billing@customer.com"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
+                type="tel"
+                placeholder="e.g. +91 95669 57474"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
               />
             </div>

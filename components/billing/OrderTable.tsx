@@ -13,16 +13,19 @@ import {
   RotateCcw,
   FileSpreadsheet,
   ChevronRight,
-  IndianRupee
+  IndianRupee,
+  Download
 } from "lucide-react";
 import OrderMetrics from "./OrderMetrics";
 import CalibrationModal from "./CalibrationModal";
 import OrderModal from "./OrderModal";
 import PLInsights from "./PLInsights";
+import PDFInvoiceModal, { InvoiceData } from "@/components/PDFInvoiceModal";
 
 interface Order {
   orderId: string;
   customerName: string;
+  customerPhone?: string;
   customerEmail?: string;
   items: { name: string; quantity: number; unitPrice: number; costPrice: number }[];
   status: "Draft" | "In Progress" | "Delivered" | "Cancelled";
@@ -47,6 +50,47 @@ export default function OrderTable() {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState<boolean>(false);
   const [isCalibrationOpen, setIsCalibrationOpen] = useState<boolean>(false);
   const [selectedOrderForCalibration, setSelectedOrderForCalibration] = useState<Order | null>(null);
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState<boolean>(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
+
+  const handleDownloadBill = (order: Order) => {
+    const itemsBreakdown =
+      order.items && order.items.length > 0
+        ? order.items.map((i) => ({
+            description: i.name,
+            hsnCode: "6810",
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+          }))
+        : [
+            {
+              description: "Bricks Supply Order",
+              hsnCode: "6810",
+              quantity: 1,
+              unitPrice: order.revenue,
+            },
+          ];
+
+    const amountPaid = order.status === "Delivered" ? order.revenue : 0;
+    const paymentStatus: "Paid" | "Partial" | "Pending" =
+      order.status === "Delivered" ? "Paid" : order.status === "In Progress" ? "Partial" : "Pending";
+
+    const invoiceData: InvoiceData = {
+      invoiceNo: `INV-2026-${order.orderId.replace(/[^0-9]/g, "") || "101"}`,
+      date: order.date,
+      type: "Customer Order",
+      customerName: order.customerName,
+      customerPhone: order.customerPhone || order.customerEmail || "+91 9566957474",
+      customerEmail: order.customerEmail,
+      items: itemsBreakdown,
+      amountPaid: amountPaid,
+      paymentStatus: paymentStatus,
+      notes: order.notes,
+    };
+
+    setSelectedInvoice(invoiceData);
+    setIsInvoiceOpen(true);
+  };
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -256,8 +300,10 @@ export default function OrderTable() {
 
                       <td className="py-4 px-4">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">{order.customerName}</div>
-                        {order.customerEmail && (
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400">{order.customerEmail}</div>
+                        {(order.customerPhone || order.customerEmail) && (
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                            {order.customerPhone || order.customerEmail}
+                          </div>
                         )}
                       </td>
 
@@ -324,22 +370,33 @@ export default function OrderTable() {
                         </span>
                       </td>
 
-                      <td className="py-4 px-4 text-right space-x-2">
-                        <button
-                          onClick={() => handleOpenCalibration(order)}
-                          className="px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-600/20 hover:bg-purple-100 dark:hover:bg-purple-600/30 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-500/30 transition text-xs inline-flex items-center gap-1"
-                        >
-                          <Sliders className="w-3.5 h-3.5" />
-                          <span>Calibrate P&L</span>
-                        </button>
+                      <td className="py-4 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleDownloadBill(order)}
+                            className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold border border-amber-500/30 transition text-xs inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                            title="Download PDF Bill"
+                          >
+                            <Download className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <span>Download Bill</span>
+                          </button>
 
-                        <button
-                          onClick={() => handleDeleteOrder(order.orderId)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition inline-flex"
-                          title="Delete Order"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          <button
+                            onClick={() => handleOpenCalibration(order)}
+                            className="px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-600/20 hover:bg-purple-100 dark:hover:bg-purple-600/30 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-500/30 transition text-xs inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                          >
+                            <Sliders className="w-3.5 h-3.5 shrink-0" />
+                            <span>Calibrate P&L</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteOrder(order.orderId)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition inline-flex items-center justify-center shrink-0"
+                            title="Delete Order"
+                          >
+                            <Trash2 className="w-4 h-4 shrink-0" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -362,6 +419,12 @@ export default function OrderTable() {
         order={selectedOrderForCalibration}
         onClose={() => setIsCalibrationOpen(false)}
         onCalibrated={fetchOrders}
+      />
+
+      <PDFInvoiceModal
+        isOpen={isInvoiceOpen}
+        onClose={() => setIsInvoiceOpen(false)}
+        invoice={selectedInvoice}
       />
     </div>
   );

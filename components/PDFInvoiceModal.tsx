@@ -10,6 +10,7 @@ export interface InvoiceData {
   date: string;
   type: "Customer Order" | "Truck Service" | "Material Cost";
   customerName: string;
+  customerPhone?: string;
   customerEmail?: string;
   customerAddress?: string;
   customerGstin?: string;
@@ -125,7 +126,11 @@ export default function PDFInvoiceModal({ isOpen, onClose, invoice }: PDFInvoice
                 Billed To (Customer):
               </span>
               <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{invoice.customerName}</p>
-              {invoice.customerEmail && <p className="text-slate-600 dark:text-slate-400">{invoice.customerEmail}</p>}
+              {(invoice.customerPhone || invoice.customerEmail) && (
+                <p className="text-slate-600 dark:text-slate-400 font-mono">
+                  Mobile: {invoice.customerPhone || invoice.customerEmail}
+                </p>
+              )}
               <p className="text-slate-500 mt-1">Service Type: {invoice.type}</p>
             </div>
 

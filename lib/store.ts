@@ -27,6 +27,7 @@ export interface MockAttendance {
 export interface MockOrder {
   orderId: string;
   customerName: string;
+  customerPhone?: string;
   customerEmail?: string;
   items: { name: string; quantity: number; unitPrice: number; costPrice: number }[];
   status: "Draft" | "In Progress" | "Delivered" | "Cancelled";
@@ -84,6 +85,7 @@ let mockOrders: MockOrder[] = [
   {
     orderId: "ORD-8901",
     customerName: "Apex Horizon Towers",
+    customerPhone: "+91 98765 43210",
     customerEmail: "procurement@apexhorizon.com",
     items: [
       { name: "High-Density Concrete Bricks (10k Batch)", quantity: 5, unitPrice: 24000, costPrice: 16000 },
@@ -102,6 +104,7 @@ let mockOrders: MockOrder[] = [
   {
     orderId: "ORD-8902",
     customerName: "Vanguard Logistics Center",
+    customerPhone: "+91 95669 57474",
     customerEmail: "orders@vanguardlog.com",
     items: [
       { name: "Paving Interlocking Bricks (Grade A)", quantity: 20, unitPrice: 9500, costPrice: 6200 },
@@ -120,6 +123,7 @@ let mockOrders: MockOrder[] = [
   {
     orderId: "ORD-8903",
     customerName: "Metro Urban Infrastructure",
+    customerPhone: "+91 94432 10987",
     customerEmail: "contact@metrourban.org",
     items: [
       { name: "Acoustic Insulation Masonry Units", quantity: 15, unitPrice: 11000, costPrice: 8000 }
@@ -137,6 +141,7 @@ let mockOrders: MockOrder[] = [
   {
     orderId: "ORD-8904",
     customerName: "Skyline Residential Estate",
+    customerPhone: "+91 91234 56789",
     customerEmail: "billing@skylineres.com",
     items: [
       { name: "Terracotta Facing Bricks Custom Tint", quantity: 30, unitPrice: 7800, costPrice: 4800 }

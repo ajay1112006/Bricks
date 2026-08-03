@@ -77,6 +77,7 @@ export interface ICosts {
 export interface IOrder extends Document {
   orderId: string;
   customerName: string;
+  customerPhone?: string;
   customerEmail?: string;
   items: IOrderItem[];
   status: "Draft" | "In Progress" | "Delivered" | "Cancelled";
@@ -107,6 +108,7 @@ const CostsSchema = new Schema<ICosts>({
 const OrderSchema = new Schema<IOrder>({
   orderId: { type: String, required: true, unique: true, index: true },
   customerName: { type: String, required: true },
+  customerPhone: { type: String, default: "" },
   customerEmail: { type: String, default: "" },
   items: [OrderItemSchema],
   status: {
