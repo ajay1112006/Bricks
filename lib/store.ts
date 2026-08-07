@@ -290,28 +290,7 @@ export interface MockHoursRent {
   createdAt: string;
 }
 
-let mockHoursRents: MockHoursRent[] = [
-  {
-    rentId: "RENT-901",
-    date: "2026-08-01",
-    partyName: "Selvaraj",
-    pricePerHour: 1300,
-    hours: 8,
-    totalAmount: 10400, // 1300 * 8
-    padiPaid: 3000,
-    netBalance: 7400, // 10400 - 3000
-    laborWages: [
-      { name: "Operator", rate: 140, hours: 8, total: 1120 },
-      { name: "Lab-1", rate: 130, hours: 8, total: 1040 },
-      { name: "Lab-2", rate: 130, hours: 8, total: 1040 },
-      { name: "Lab-3", rate: 130, hours: 8, total: 1040 },
-      { name: "Lab-4", rate: 130, hours: 8, total: 1040 }
-    ],
-    totalLaborCost: 5280, // 1120 + 4*1040
-    netProfitMargin: 5120, // 10400 - 5280
-    createdAt: new Date().toISOString()
-  }
-];
+let mockHoursRents: MockHoursRent[] = [];
 
 export const memoryStore = {
   getEmployees: () => mockEmployees,
@@ -447,6 +426,22 @@ export const memoryStore = {
   addHoursRent: (rent: MockHoursRent) => {
     mockHoursRents = [rent, ...mockHoursRents];
     return rent;
+  },
+  updateHoursRent: (id: string, updates: Partial<MockHoursRent>) => {
+    mockHoursRents = mockHoursRents.map(r => {
+      if (r.rentId === id) {
+        const newPadiPaid = updates.padiPaid !== undefined ? updates.padiPaid : r.padiPaid;
+        const newNetBalance = Math.max(0, r.totalAmount - newPadiPaid);
+        return {
+          ...r,
+          ...updates,
+          padiPaid: newPadiPaid,
+          netBalance: newNetBalance,
+        };
+      }
+      return r;
+    });
+    return mockHoursRents.find(r => r.rentId === id);
   },
   deleteHoursRent: (id: string) => {
     mockHoursRents = mockHoursRents.filter(r => r.rentId !== id);
