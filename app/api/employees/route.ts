@@ -33,6 +33,8 @@ export async function POST(req: NextRequest) {
       employeeId,
       role: validatedData.role || "Staff",
       department: validatedData.department || "General",
+      dailySalary: Number(validatedData.dailySalary) || 0,
+      advanceAmount: Number(validatedData.advanceAmount) || 0,
     };
 
     const { isMock } = await connectToDatabase();

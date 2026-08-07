@@ -20,7 +20,11 @@ import {
   X,
   UserPlus,
   Check,
-  Briefcase
+  Briefcase,
+  Phone,
+  Mail,
+  MapPin,
+  User
 } from "lucide-react";
 import { handleCardMouseMove } from "@/lib/useSpotlight";
 import { downloadElementAsPDF } from "@/lib/pdfGenerator";
@@ -90,6 +94,13 @@ export default function SplitterPage() {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [activeSlipRecord, setActiveSlipRecord] = useState<HoursRentRecord | null>(null);
   const slipPrintRef = useRef<HTMLDivElement>(null);
+
+  // Add Party / Client Modal State
+  const [isAddPartyModalOpen, setIsAddPartyModalOpen] = useState(false);
+  const [newPartyNameInput, setNewPartyNameInput] = useState("");
+  const [newPartyPhoneInput, setNewPartyPhoneInput] = useState("");
+  const [newPartyEmailInput, setNewPartyEmailInput] = useState("");
+  const [newPartyAddressInput, setNewPartyAddressInput] = useState("");
 
   // Add Laborer Modal State
   const [isAddLaborModalOpen, setIsAddLaborModalOpen] = useState(false);
@@ -209,6 +220,31 @@ export default function SplitterPage() {
     setLaborWages((prev) => [...prev, newItem]);
     scrollToBottomLaborList();
     showToast(`Added Lab-${nextNum} to list`);
+  };
+
+  // Unique saved parties for auto-complete and modal selection
+  const uniqueSavedParties = Array.from(
+    new Set(savedRecords.map((r) => r.partyName).filter(Boolean))
+  );
+
+  // Open Modal to Add / Select Party
+  const handleOpenAddPartyModal = () => {
+    setNewPartyNameInput(partyName || "");
+    setNewPartyPhoneInput("");
+    setNewPartyEmailInput("");
+    setNewPartyAddressInput("");
+    setIsAddPartyModalOpen(true);
+  };
+
+  // Submit Add Party Modal
+  const handleAddPartySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nameToSet = newPartyNameInput.trim();
+    if (!nameToSet) return;
+
+    setPartyName(nameToSet);
+    setIsAddPartyModalOpen(false);
+    showToast(`Party / Client updated to "${nameToSet}"`);
   };
 
   // Open Modal to Add Laborer
@@ -388,11 +424,19 @@ export default function SplitterPage() {
 
   return (
     <div className="space-y-8 py-4 sm:py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-      {/* Dynamic Datalist for Employee Auto-complete */}
+      {/* Dynamic Datalists for Employee & Party Auto-complete */}
       <datalist id="employee-roster-list">
         {systemEmployees.map((emp, i) => (
           <option key={emp._id || emp.employeeId || i} value={emp.name}>
             {emp.name} {emp.role ? `(${emp.role})` : ""}
+          </option>
+        ))}
+      </datalist>
+
+      <datalist id="party-client-list">
+        {uniqueSavedParties.map((pName, i) => (
+          <option key={i} value={pName}>
+            {pName}
           </option>
         ))}
       </datalist>
@@ -422,19 +466,19 @@ export default function SplitterPage() {
 
         <div className="flex items-center space-x-3 w-full md:w-auto">
           <button
-            onClick={handleOpenAddLaborModal}
+            onClick={handleOpenAddPartyModal}
             className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 text-xs sm:text-sm font-semibold border border-amber-500/30 transition-all"
           >
             <UserPlus className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            <span>+ Add Laborer</span>
+            <span>+ Add Party</span>
           </button>
 
           <button
-            onClick={() => handleOpenPrintSlip()}
-            className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-amber-600/20 transition-all"
+            onClick={handleOpenAddLaborModal}
+            className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 dark:text-amber-100 text-xs sm:text-sm font-semibold border border-amber-500/30 transition-all"
           >
-            <Download className="w-4 h-4" />
-            <span>Download Current Slip</span>
+            <Users className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <span>+ Add Laborer</span>
           </button>
         </div>
       </div>
@@ -446,13 +490,24 @@ export default function SplitterPage() {
           className="glass-panel p-6 sm:p-8 rounded-3xl border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-transparent to-transparent relative shadow-2xl overflow-hidden"
         >
           {/* Handwritten Sketch Title Header */}
-          <div className="text-center border-b border-amber-500/20 pb-4 mb-6">
-            <h2 className="text-xl sm:text-2xl font-serif font-bold gold-text-gradient tracking-wide uppercase">
-              Hours Rent & Wage Allocation Splitter Sheet
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
-              Live Interactive Calculation & Dual-Column Splitter
-            </p>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-amber-500/20 pb-4 mb-6">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-serif font-bold gold-text-gradient tracking-wide uppercase">
+                Hours Rent & Wage Allocation Splitter Sheet
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                Live Interactive Calculation & Dual-Column Splitter
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleOpenPrintSlip()}
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-amber-600/20 transition-all shrink-0"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Current Slip</span>
+            </button>
           </div>
 
           {/* TWO COLUMN SPLITTER CONTAINER */}
@@ -462,11 +517,22 @@ export default function SplitterPage() {
 
             {/* LEFT COLUMN: Hours Rent Billing & Party Ledger */}
             <div className="space-y-5 lg:pr-6">
-              <div className="flex items-center space-x-2 border-b border-amber-500/20 pb-2">
-                <Building2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <h3 className="text-base font-serif font-bold text-amber-900 dark:text-amber-100 uppercase tracking-wider">
-                  Left Column: Hours. Rent.
-                </h3>
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                <div className="flex items-center space-x-2">
+                  <Building2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <h3 className="text-base font-serif font-bold text-amber-900 dark:text-amber-100 uppercase tracking-wider">
+                    Left Column: Hours. Rent.
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddPartyModal}
+                  className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow flex items-center space-x-1 transition"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Add Party</span>
+                </button>
               </div>
 
               {/* Date Input */}
@@ -489,13 +555,24 @@ export default function SplitterPage() {
 
               {/* Party Name Input */}
               <div className="space-y-1">
-                <label className="text-xs font-serif font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1">
-                  <span className="text-amber-500">*</span>
-                  <span>Party / Client Name:</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-serif font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1">
+                    <span className="text-amber-500">*</span>
+                    <span>Party / Client Name:</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddPartyModal}
+                    className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center space-x-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>+ Add / Select Party</span>
+                  </button>
+                </div>
                 <input
                   type="text"
                   required
+                  list="party-client-list"
                   placeholder="e.g. Selvaraj"
                   value={partyName}
                   onChange={(e) => setPartyName(e.target.value)}
@@ -840,6 +917,155 @@ export default function SplitterPage() {
           </div>
         </div>
       </div>
+
+      {/* --- ADD PARTY / CLIENT MODAL --- */}
+      {isAddPartyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
+          <div className="glass-panel w-full max-w-lg p-6 sm:p-7 rounded-3xl border-amber-500/40 relative shadow-2xl bg-white dark:bg-[#0E0C12] text-slate-900 dark:text-amber-100">
+            <button
+              onClick={() => setIsAddPartyModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 dark:hover:text-amber-200 transition p-1.5 rounded-full hover:bg-amber-500/10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-5 border-b border-amber-500/20 pb-4">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-serif font-bold text-amber-900 dark:text-amber-100">
+                  Add / Select Party or Client
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Select from existing saved client roster or enter new Party / Client details
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddPartySubmit} className="space-y-4">
+              {/* Quick Select from Saved Unique Parties */}
+              {uniqueSavedParties.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-amber-200 flex items-center justify-between">
+                    <span>Quick Select Saved Party / Client:</span>
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">
+                      ({uniqueSavedParties.length} saved)
+                    </span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                    {uniqueSavedParties.map((pName, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setNewPartyNameInput(pName)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 ${
+                          newPartyNameInput === pName
+                            ? "bg-amber-600 text-white shadow"
+                            : "bg-white dark:bg-slate-900 text-slate-700 dark:text-amber-200 border border-amber-500/20 hover:border-amber-500/50"
+                        }`}
+                      >
+                        <UserCheck className="w-3 h-3" />
+                        <span>{pName}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Party / Client Name Input */}
+              <div className="space-y-1">
+                <label className="text-xs font-serif font-bold text-slate-700 dark:text-amber-200">
+                  Party / Client Name <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" />
+                  <input
+                    type="text"
+                    required
+                    list="party-client-list"
+                    placeholder="e.g. Selvaraj / Horizon Builders"
+                    value={newPartyNameInput}
+                    onChange={(e) => setNewPartyNameInput(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/90 dark:bg-black/60 border border-amber-500/30 text-sm font-bold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              {/* Optional Contact Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block">
+                    Phone Number (Optional)
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="+91 9876543210"
+                      value={newPartyPhoneInput}
+                      onChange={(e) => setNewPartyPhoneInput(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-white dark:bg-black/60 border border-amber-500/20 text-xs font-mono font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block">
+                    Email Address (Optional)
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      placeholder="client@example.com"
+                      value={newPartyEmailInput}
+                      onChange={(e) => setNewPartyEmailInput(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-white dark:bg-black/60 border border-amber-500/20 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional Site Address */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block">
+                  Site / Delivery Address (Optional)
+                </label>
+                <div className="relative">
+                  <MapPin className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Site 4B, Industrial Zone, Madurai"
+                    value={newPartyAddressInput}
+                    onChange={(e) => setNewPartyAddressInput(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 rounded-xl bg-white dark:bg-black/60 border border-amber-500/20 text-xs font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-amber-500/20">
+                <button
+                  type="button"
+                  onClick={() => setIsAddPartyModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-amber-500/10 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newPartyNameInput.trim()}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/20 transition flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Apply Party to Sheet</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* --- ADD LABORER MODAL --- */}
       {isAddLaborModalOpen && (

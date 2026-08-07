@@ -7,6 +7,8 @@ export const EmployeeSchemaValidation = z.object({
   role: z.string().default("Staff"),
   department: z.string().default("General"),
   status: z.enum(["Active", "Inactive"]).default("Active"),
+  dailySalary: z.number().nonnegative("Salary cannot be negative").optional().default(0),
+  advanceAmount: z.number().nonnegative("Advance amount cannot be negative").optional().default(0),
 });
 
 // Attendance Record validation

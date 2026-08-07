@@ -6,6 +6,8 @@ export interface MockEmployee {
   role: string;
   department: string;
   status: "Active" | "Inactive";
+  dailySalary?: number;
+  advanceAmount?: number;
   createdAt: string;
 }
 
@@ -42,12 +44,12 @@ export interface MockOrder {
 }
 
 let mockEmployees: MockEmployee[] = [
-  { employeeId: "EMP-001", name: "Alex Mercer", role: "Senior Mason", department: "Construction", status: "Active", createdAt: new Date().toISOString() },
-  { employeeId: "EMP-002", name: "Sarah Connor", role: "Project Manager", department: "Operations", status: "Active", createdAt: new Date().toISOString() },
-  { employeeId: "EMP-003", name: "David Miller", role: "Site Supervisor", department: "Field Ops", status: "Active", createdAt: new Date().toISOString() },
-  { employeeId: "EMP-004", name: "Elena Rostova", role: "Safety Officer", department: "Quality & Safety", status: "Active", createdAt: new Date().toISOString() },
-  { employeeId: "EMP-005", name: "Marcus Vance", role: "Logistics Specialist", department: "Supply Chain", status: "Active", createdAt: new Date().toISOString() },
-  { employeeId: "EMP-006", name: "James Holden", role: "Structural Technician", department: "Construction", status: "Active", createdAt: new Date().toISOString() },
+  { employeeId: "EMP-001", name: "Alex Mercer", role: "Senior Mason", department: "Construction", status: "Active", dailySalary: 850, advanceAmount: 2000, createdAt: new Date().toISOString() },
+  { employeeId: "EMP-002", name: "Sarah Connor", role: "Project Manager", department: "Operations", status: "Active", dailySalary: 1200, advanceAmount: 0, createdAt: new Date().toISOString() },
+  { employeeId: "EMP-003", name: "David Miller", role: "Site Supervisor", department: "Field Ops", status: "Active", dailySalary: 950, advanceAmount: 1500, createdAt: new Date().toISOString() },
+  { employeeId: "EMP-004", name: "Elena Rostova", role: "Safety Officer", department: "Quality & Safety", status: "Active", dailySalary: 900, advanceAmount: 0, createdAt: new Date().toISOString() },
+  { employeeId: "EMP-005", name: "Marcus Vance", role: "Logistics Specialist", department: "Supply Chain", status: "Active", dailySalary: 750, advanceAmount: 1000, createdAt: new Date().toISOString() },
+  { employeeId: "EMP-006", name: "James Holden", role: "Structural Technician", department: "Construction", status: "Active", dailySalary: 800, advanceAmount: 500, createdAt: new Date().toISOString() },
 ];
 
 const today = new Date().toLocaleDateString("sv");

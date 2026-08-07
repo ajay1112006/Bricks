@@ -31,6 +31,8 @@ export async function GET(req: NextRequest) {
           employeeName: emp.name,
           role: emp.role,
           department: emp.department,
+          dailySalary: emp.dailySalary || 0,
+          advanceAmount: emp.advanceAmount || 0,
           status: found ? found.status : ("Present" as const), // Default to Present for quick mark-in
           notes: found?.notes || ""
         };
@@ -60,6 +62,8 @@ export async function GET(req: NextRequest) {
         employeeName: emp.name,
         role: emp.role,
         department: emp.department,
+        dailySalary: emp.dailySalary || 0,
+        advanceAmount: emp.advanceAmount || 0,
         status: found ? found.status : ("Present" as const),
         notes: found?.notes || ""
       };

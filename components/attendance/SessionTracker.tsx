@@ -24,6 +24,8 @@ interface AttendanceRecord {
   department: string;
   status: "Present" | "Absent";
   notes?: string;
+  dailySalary?: number;
+  advanceAmount?: number;
 }
 
 const SESSIONS = [
@@ -346,10 +348,20 @@ export default function SessionTracker() {
                           {r.employeeId}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
                         <span>{r.role}</span>
                         <span>•</span>
                         <span className="text-blue-600 dark:text-blue-400 font-medium">{r.department}</span>
+                        {Boolean(r.dailySalary) && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono text-[11px] font-semibold border border-emerald-500/20">
+                            Salary: ₹{r.dailySalary}/day
+                          </span>
+                        )}
+                        {Boolean(r.advanceAmount) && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 font-mono text-[11px] font-semibold border border-amber-500/20">
+                            Adv: ₹{r.advanceAmount}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

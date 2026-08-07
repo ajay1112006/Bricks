@@ -7,6 +7,8 @@ export interface IEmployee extends Document {
   role: string;
   department: string;
   status: "Active" | "Inactive";
+  dailySalary?: number;
+  advanceAmount?: number;
   createdAt: Date;
 }
 
@@ -16,6 +18,8 @@ const EmployeeSchema = new Schema<IEmployee>({
   role: { type: String, required: true },
   department: { type: String, required: true, default: "General" },
   status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
+  dailySalary: { type: Number, default: 0, min: 0 },
+  advanceAmount: { type: Number, default: 0, min: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 
