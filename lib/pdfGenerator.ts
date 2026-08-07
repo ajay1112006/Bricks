@@ -1,3 +1,4 @@
+// Helper for generating PDF downloads using html2canvas and jsPDF
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 

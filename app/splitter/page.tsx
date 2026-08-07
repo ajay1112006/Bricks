@@ -34,6 +34,7 @@ interface LaborWageItem {
   name: string;
   rate: number;
   hours: number;
+  advance: number;
   total: number;
 }
 
@@ -56,6 +57,8 @@ interface HoursRentRecord {
   netBalance: number;
   laborWages: LaborWageItem[];
   totalLaborCost: number;
+  dieselCost?: number;
+  dieselLiters?: number;
   netProfitMargin: number;
   createdAt: string;
 }
@@ -69,14 +72,16 @@ export default function SplitterPage() {
   const [pricePerHour, setPricePerHour] = useState<number>(1300);
   const [hours, setHours] = useState<number>(8);
   const [padiPaid, setPadiPaid] = useState<number>(3000);
+  const [dieselCost, setDieselCost] = useState<number>(0);
+  const [dieselLiters, setDieselLiters] = useState<number>(0);
 
   // Right Column: Operator & Labor List
   const [laborWages, setLaborWages] = useState<LaborWageItem[]>([
-    { id: "lab-op-1", name: "Operator", rate: 140, hours: 8, total: 1120 },
-    { id: "lab-1", name: "Lab-1", rate: 130, hours: 8, total: 1040 },
-    { id: "lab-2", name: "Lab-2", rate: 130, hours: 8, total: 1040 },
-    { id: "lab-3", name: "Lab-3", rate: 130, hours: 8, total: 1040 },
-    { id: "lab-4", name: "Lab-4", rate: 130, hours: 8, total: 1040 },
+    { id: "lab-op-1", name: "Operator", rate: 140, hours: 8, advance: 0, total: 1120 },
+    { id: "lab-1", name: "Lab-1", rate: 130, hours: 8, advance: 0, total: 1040 },
+    { id: "lab-2", name: "Lab-2", rate: 130, hours: 8, advance: 0, total: 1040 },
+    { id: "lab-3", name: "Lab-3", rate: 130, hours: 8, advance: 0, total: 1040 },
+    { id: "lab-4", name: "Lab-4", rate: 130, hours: 8, advance: 0, total: 1040 },
   ]);
 
   // System employees roster
@@ -107,6 +112,7 @@ export default function SplitterPage() {
   const [newLaborName, setNewLaborName] = useState("");
   const [newLaborRate, setNewLaborRate] = useState<number>(130);
   const [newLaborHours, setNewLaborHours] = useState<number>(hours);
+  const [newLaborAdvance, setNewLaborAdvance] = useState<number>(0);
   const [selectedSystemEmp, setSelectedSystemEmp] = useState<string>("");
   
   // New Employee Creation inside Modal
@@ -125,9 +131,11 @@ export default function SplitterPage() {
   const totalAmount = Number((pricePerHour * hours).toFixed(2));
   const netBalance = Math.max(0, Number((totalAmount - padiPaid).toFixed(2)));
 
-  // Recalculate labor totals
+  // Recalculate labor totals & net profit
   const totalLaborCost = laborWages.reduce((acc, curr) => acc + curr.rate * curr.hours, 0);
-  const netProfitMargin = totalAmount - totalLaborCost;
+  const totalLaborAdvance = laborWages.reduce((acc, curr) => acc + (curr.advance || 0), 0);
+  const netLaborPayable = Math.max(0, totalLaborCost - totalLaborAdvance);
+  const netProfitMargin = totalAmount - totalLaborCost - (dieselCost || 0);
 
   // Show temporary toast message
   const showToast = (msg: string) => {
@@ -215,6 +223,7 @@ export default function SplitterPage() {
       name: `Lab-${nextNum}`,
       rate: 130,
       hours: hours,
+      advance: 0,
       total: 130 * hours,
     };
     setLaborWages((prev) => [...prev, newItem]);
@@ -253,6 +262,7 @@ export default function SplitterPage() {
     setNewLaborName(`Lab-${nextNum}`);
     setNewLaborRate(130);
     setNewLaborHours(hours);
+    setNewLaborAdvance(0);
     setSelectedSystemEmp("");
     setShowCreateEmpSection(false);
     setIsAddLaborModalOpen(true);
@@ -276,6 +286,7 @@ export default function SplitterPage() {
       name: nameToAdd,
       rate: Number(newLaborRate) || 130,
       hours: Number(newLaborHours) || hours,
+      advance: Number(newLaborAdvance) || 0,
       total: Number((Number(newLaborRate || 130) * Number(newLaborHours || hours)).toFixed(2)),
     };
 
@@ -338,10 +349,13 @@ export default function SplitterPage() {
         pricePerHour: Number(pricePerHour),
         hours: Number(hours),
         padiPaid: Number(padiPaid),
+        dieselCost: Number(dieselCost || 0),
+        dieselLiters: Number(dieselLiters || 0),
         laborWages: laborWages.map((w) => ({
           name: w.name,
           rate: Number(w.rate),
           hours: Number(w.hours),
+          advance: Number(w.advance || 0),
           total: Number(w.rate * w.hours),
         })),
       };
@@ -384,7 +398,11 @@ export default function SplitterPage() {
   // Open Slip Modal for printing
   const handleOpenPrintSlip = (record?: HoursRentRecord) => {
     if (record) {
-      setActiveSlipRecord(record);
+      setActiveSlipRecord({
+        ...record,
+        dieselCost: record.dieselCost || 0,
+        dieselLiters: record.dieselLiters || 0,
+      });
     } else {
       setActiveSlipRecord({
         rentId: `RENT-PREVIEW`,
@@ -395,8 +413,10 @@ export default function SplitterPage() {
         totalAmount,
         padiPaid,
         netBalance,
-        laborWages: laborWages.map((w) => ({ ...w, total: w.rate * w.hours })),
+        laborWages: laborWages.map((w) => ({ ...w, advance: w.advance || 0, total: w.rate * w.hours })),
         totalLaborCost,
+        dieselCost: Number(dieselCost || 0),
+        dieselLiters: Number(dieselLiters || 0),
         netProfitMargin,
         createdAt: new Date().toISOString(),
       });
@@ -697,7 +717,7 @@ export default function SplitterPage() {
                     className="p-3 rounded-2xl bg-white/60 dark:bg-black/40 border border-amber-500/20 flex items-center justify-between gap-2 transition-all hover:border-amber-500/40"
                   >
                     {/* Name Input with Autocomplete Datalist */}
-                    <div className="relative">
+                    <div className="relative shrink-0">
                       <input
                         type="text"
                         required
@@ -705,35 +725,61 @@ export default function SplitterPage() {
                         value={item.name}
                         onChange={(e) => handleLaborRowChange(item.id, "name", e.target.value)}
                         placeholder="Operator / Laborer"
-                        className="w-32 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-500/30 text-xs font-bold text-slate-900 dark:text-amber-100 focus:outline-none focus:border-amber-500"
+                        className="w-28 sm:w-32 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-500/30 text-xs font-bold text-slate-900 dark:text-amber-100 focus:outline-none focus:border-amber-500"
                       />
                     </div>
 
-                    {/* Formula Inputs (Rate x Hours) */}
-                    <div className="flex items-center space-x-1 font-mono text-xs">
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.rate}
-                        onChange={(e) => handleLaborRowChange(item.id, "rate", Number(e.target.value))}
-                        className="w-16 px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold text-slate-900 dark:text-amber-100"
-                      />
-                      <span className="text-slate-400">×</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        value={item.hours}
-                        onChange={(e) => handleLaborRowChange(item.id, "hours", Number(e.target.value))}
-                        className="w-12 px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold text-slate-900 dark:text-amber-100"
-                      />
-                      <span className="text-slate-400">h =</span>
+                    {/* Formula Inputs (Rate x Hours - Advance) */}
+                    <div className="flex items-center space-x-1 font-mono text-xs flex-wrap sm:flex-nowrap gap-y-1">
+                      <div className="flex items-center space-x-1">
+                        <input
+                          type="number"
+                          min="0"
+                          title="Rate per hour"
+                          value={item.rate}
+                          onChange={(e) => handleLaborRowChange(item.id, "rate", Number(e.target.value))}
+                          className="w-14 px-1.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold text-slate-900 dark:text-amber-100"
+                        />
+                        <span className="text-slate-400">×</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          title="Hours worked"
+                          value={item.hours}
+                          onChange={(e) => handleLaborRowChange(item.id, "hours", Number(e.target.value))}
+                          className="w-11 px-1 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold text-slate-900 dark:text-amber-100"
+                        />
+                        <span className="text-slate-400">h</span>
+                      </div>
+
+                      {/* Advance Input Option */}
+                      <div className="flex items-center space-x-1 pl-1 border-l border-amber-500/20">
+                        <span className="text-[10px] text-amber-700 dark:text-amber-300 font-sans font-semibold">Adv:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="0"
+                          title="Advance amount received/paid"
+                          value={item.advance || ""}
+                          onChange={(e) => handleLaborRowChange(item.id, "advance", e.target.value === "" ? 0 : Number(e.target.value))}
+                          className="w-16 px-1.5 py-1 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/40 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
                     </div>
 
-                    {/* Total Output */}
-                    <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs min-w-[60px] text-right">
-                      ₹{(item.rate * item.hours).toLocaleString()}
-                    </span>
+                    {/* Total Output & Net Payable */}
+                    <div className="text-right min-w-[65px]">
+                      <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs block">
+                        ₹{(item.rate * item.hours).toLocaleString()}
+                      </span>
+                      {(item.advance || 0) > 0 && (
+                        <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400 block font-semibold">
+                          Net: ₹{Math.max(0, item.rate * item.hours - item.advance).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Delete button */}
                     <button
@@ -751,14 +797,66 @@ export default function SplitterPage() {
               {/* Total Labor Wages Breakdown */}
               <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
                 <div className="flex justify-between items-center text-xs font-serif font-bold text-slate-700 dark:text-slate-300">
-                  <span>Total Labor Expenses ({laborWages.length} personnel):</span>
+                  <span>Total Gross Labor Wages ({laborWages.length} personnel):</span>
                   <span className="font-mono text-base text-rose-600 dark:text-rose-400 font-bold">
                     ₹{totalLaborCost.toLocaleString()}
                   </span>
                 </div>
+                {totalLaborAdvance > 0 && (
+                  <div className="flex justify-between items-center text-xs font-serif font-bold text-emerald-700 dark:text-emerald-400 pt-1 border-t border-amber-500/20">
+                    <span>Total Labor Advance Paid:</span>
+                    <span className="font-mono text-sm font-bold">
+                      - ₹{totalLaborAdvance.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-xs font-serif font-bold text-amber-900 dark:text-amber-100 pt-1 border-t border-amber-500/20">
+                  <span>Net Labor Payable Due:</span>
+                  <span className="font-mono text-sm text-amber-600 dark:text-amber-300 font-bold">
+                    ₹{netLaborPayable.toLocaleString()}
+                  </span>
+                </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Operator ({laborWages.find((l) => l.name === "Operator")?.rate || 140} × {hours}h) + Laborers wages
+                  Operator ({laborWages.find((l) => l.name === "Operator")?.rate || 140} × {hours}h) + Laborers wages & advances
                 </p>
+              </div>
+
+              {/* Diesel Expense Input Card */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label className="text-xs font-serif font-bold text-slate-800 dark:text-amber-100 block">
+                      Diesel Price / Expense (₹):
+                    </label>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Included on every single PDF slip & deducted from margin
+                    </span>
+                  </div>
+                  <div className="relative shrink-0 w-32">
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="0"
+                      value={dieselCost || ""}
+                      onChange={(e) => setDieselCost(e.target.value === "" ? 0 : Number(e.target.value))}
+                      className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-black/60 border border-amber-500/40 text-sm font-mono font-bold text-amber-700 dark:text-amber-300 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1.5 border-t border-amber-500/20 text-xs">
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">Diesel Liters (L) (Optional):</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="e.g. 10 L"
+                    value={dieselLiters || ""}
+                    onChange={(e) => setDieselLiters(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-28 px-2 py-1 rounded-lg bg-white dark:bg-black/60 border border-amber-500/30 text-xs font-mono font-bold text-slate-900 dark:text-amber-100 text-center"
+                  />
+                </div>
               </div>
 
               {/* Combined Job Net Margin Summary */}
@@ -768,7 +866,7 @@ export default function SplitterPage() {
                     Estimated Net Job Margin / Profit:
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Gross Billing (₹{totalAmount.toLocaleString()}) - Labor Cost (₹{totalLaborCost.toLocaleString()})
+                    Gross Billing (₹{totalAmount.toLocaleString()}) - Labor (₹{totalLaborCost.toLocaleString()}) {dieselCost > 0 ? `- Diesel (₹${dieselCost.toLocaleString()})` : ""}
                   </span>
                 </div>
                 <span className="text-2xl font-serif font-bold text-emerald-600 dark:text-emerald-400">
@@ -842,6 +940,7 @@ export default function SplitterPage() {
                   <th className="p-4">Padi (Advance)</th>
                   <th className="p-4">Net Balance (Due)</th>
                   <th className="p-4">Labor Cost</th>
+                  <th className="p-4">Diesel Cost</th>
                   <th className="p-4">Net Margin</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
@@ -849,13 +948,13 @@ export default function SplitterPage() {
               <tbody className="divide-y divide-slate-200/40 dark:divide-slate-800/60 font-sans">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-slate-500 font-serif">
+                    <td colSpan={10} className="p-8 text-center text-slate-500 font-serif">
                       Loading hours rent ledger entries...
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-slate-500">
+                    <td colSpan={10} className="p-8 text-center text-slate-500">
                       No saved hours rent records found. Fill the form above to log an entry.
                     </td>
                   </tr>
@@ -887,6 +986,9 @@ export default function SplitterPage() {
                       </td>
                       <td className="p-4 font-mono text-rose-600 dark:text-rose-400">
                         ₹{item.totalLaborCost.toLocaleString()}
+                      </td>
+                      <td className="p-4 font-mono text-amber-600 dark:text-amber-400 font-semibold">
+                        ₹{(item.dieselCost || 0).toLocaleString()}
                       </td>
                       <td className="p-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">
                         ₹{item.netProfitMargin.toLocaleString()}
@@ -1141,11 +1243,11 @@ export default function SplitterPage() {
                 />
               </div>
 
-              {/* Wage Calculation (Rate x Hours) */}
-              <div className="grid grid-cols-2 gap-3 bg-amber-500/10 p-3.5 rounded-2xl border border-amber-500/20">
+              {/* Wage Calculation (Rate x Hours & Advance) */}
+              <div className="grid grid-cols-3 gap-2 bg-amber-500/10 p-3 rounded-2xl border border-amber-500/20">
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1">
-                    Wage Rate (₹/hr)
+                    Rate (₹/hr)
                   </label>
                   <input
                     type="number"
@@ -1154,7 +1256,7 @@ export default function SplitterPage() {
                     required
                     value={newLaborRate}
                     onChange={(e) => setNewLaborRate(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-black/60 border border-amber-500/30 text-sm font-mono font-bold text-slate-900 dark:text-amber-100 focus:outline-none"
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-black/60 border border-amber-500/30 text-xs font-mono font-bold text-slate-900 dark:text-amber-100 focus:outline-none"
                   />
                 </div>
 
@@ -1169,7 +1271,22 @@ export default function SplitterPage() {
                     required
                     value={newLaborHours}
                     onChange={(e) => setNewLaborHours(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-black/60 border border-amber-500/30 text-sm font-mono font-bold text-slate-900 dark:text-amber-100 focus:outline-none"
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white dark:bg-black/60 border border-amber-500/30 text-xs font-mono font-bold text-slate-900 dark:text-amber-100 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 block mb-1">
+                    Advance (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="0"
+                    value={newLaborAdvance || ""}
+                    onChange={(e) => setNewLaborAdvance(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1315,22 +1432,46 @@ export default function SplitterPage() {
 
                 {/* Right Side */}
                 <div className="space-y-1.5 pl-2">
-                  <div className="font-bold text-sm underline mb-1 font-sans">Labor & Operator Breakdown</div>
+                  <div className="font-bold text-sm underline mb-1 font-sans">Labor & Expenses Breakdown</div>
                   {activeSlipRecord.laborWages.map((w, i) => (
-                    <div key={i} className="flex justify-between">
+                    <div key={i} className="flex justify-between text-[11px]">
                       <span>{w.name}:</span>
-                      <span>{w.rate} × {w.hours} = {w.total}</span>
+                      <span>
+                        {w.rate} × {w.hours} = {w.total}
+                        {(w.advance || 0) > 0 ? ` (Adv: ₹${w.advance})` : ""}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t border-black pt-1 font-bold flex justify-between">
                     <span>Total Labor:</span>
                     <span>₹{activeSlipRecord.totalLaborCost}</span>
                   </div>
+
+                  {/* Diesel Price Expense Line Item - Always included on every PDF */}
+                  <div className="border-t border-b border-black py-1.5 my-1.5 font-bold text-xs bg-amber-500/5 px-1">
+                    <div className="flex justify-between">
+                      <span>Diesel Price / Fuel Expense:</span>
+                      <span>₹{activeSlipRecord.dieselCost || 0}</span>
+                    </div>
+                    {activeSlipRecord.dieselLiters && activeSlipRecord.dieselLiters > 0 ? (
+                      <div className="text-[10px] text-slate-600 font-normal font-sans mt-0.5">
+                        Fuel Quantity: {activeSlipRecord.dieselLiters} Liters
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="font-bold flex justify-between text-xs text-rose-700 dark:text-rose-400 pt-0.5">
+                    <span>Total Expenses (Labor + Diesel):</span>
+                    <span>₹{(activeSlipRecord.totalLaborCost + (activeSlipRecord.dieselCost || 0)).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
 
               <div className="mt-4 pt-3 border-t-2 border-amber-600/30 text-center font-bold">
-                Net Job Margin: ₹{activeSlipRecord.netProfitMargin}
+                <div className="text-sm">Net Job Margin: ₹{activeSlipRecord.netProfitMargin}</div>
+                <div className="text-[10px] font-sans font-normal text-slate-500 mt-0.5">
+                  (Gross Amount ₹{activeSlipRecord.totalAmount} - Labor Cost ₹{activeSlipRecord.totalLaborCost} - Diesel Expense ₹{activeSlipRecord.dieselCost || 0})
+                </div>
               </div>
             </div>
           </div>

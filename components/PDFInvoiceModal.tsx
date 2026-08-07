@@ -20,6 +20,7 @@ export interface InvoiceData {
     quantity: number;
     unitPrice: number;
   }>;
+  dieselCost?: number; // Diesel price / Freight expense
   amountPaid: number;
   paymentStatus: "Paid" | "Partial" | "Pending";
   notes?: string;
@@ -195,6 +196,10 @@ export default function PDFInvoiceModal({ isOpen, onClose, invoice }: PDFInvoice
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Subtotal:</span>
                 <span>₹{subtotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-amber-900 dark:text-amber-200 font-bold bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20">
+                <span>Diesel Price / Freight Expense:</span>
+                <span className="text-amber-700 dark:text-amber-300">₹{(invoice.dieselCost || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>CGST (9%):</span>

@@ -214,6 +214,7 @@ export interface ILaborWage {
   name: string; // "Operator", "Lab-1", "Lab-2", etc.
   rate: number; // e.g. 140 or 130
   hours: number; // e.g. 8
+  advance?: number; // Advance amount received/paid to operator or labor
   total: number; // rate * hours
 }
 
@@ -228,7 +229,9 @@ export interface IHoursRent extends Document {
   netBalance: number; // totalAmount - padiPaid = 7400
   laborWages: ILaborWage[]; // Operator + Lab-1 to Lab-4...
   totalLaborCost: number; // Sum of all labor wages = 5280
-  netProfitMargin: number; // totalAmount - totalLaborCost
+  dieselCost?: number; // Diesel price / expense amount
+  dieselLiters?: number; // Optional fuel volume in liters
+  netProfitMargin: number; // totalAmount - totalLaborCost - dieselCost
   createdAt: Date;
 }
 
@@ -236,6 +239,7 @@ const LaborWageSchema = new Schema<ILaborWage>({
   name: { type: String, required: true },
   rate: { type: Number, required: true, min: 0 },
   hours: { type: Number, required: true, min: 0 },
+  advance: { type: Number, default: 0, min: 0 },
   total: { type: Number, required: true, min: 0 }
 }, { _id: false });
 
@@ -250,6 +254,8 @@ const HoursRentSchema = new Schema<IHoursRent>({
   netBalance: { type: Number, required: true },
   laborWages: [LaborWageSchema],
   totalLaborCost: { type: Number, required: true, min: 0 },
+  dieselCost: { type: Number, default: 0, min: 0 },
+  dieselLiters: { type: Number, default: 0, min: 0 },
   netProfitMargin: { type: Number, required: true },
   createdAt: { type: Date, default: Date.now }
 });

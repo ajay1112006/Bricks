@@ -97,6 +97,7 @@ export const LaborWageSchemaValidation = z.object({
   name: z.string().min(1, "Labor/Operator name required"),
   rate: z.number().nonnegative("Rate cannot be negative"),
   hours: z.number().nonnegative("Hours cannot be negative"),
+  advance: z.number().nonnegative("Advance cannot be negative").default(0),
   total: z.number().nonnegative().optional(),
 });
 
@@ -107,6 +108,8 @@ export const HoursRentSchemaValidation = z.object({
   pricePerHour: z.number().nonnegative("Price per hour cannot be negative"),
   hours: z.number().positive("Hours must be greater than 0"),
   padiPaid: z.number().nonnegative("Padi paid cannot be negative").default(0),
+  dieselCost: z.number().nonnegative("Diesel cost cannot be negative").default(0),
+  dieselLiters: z.number().nonnegative("Diesel liters cannot be negative").default(0),
   laborWages: z.array(LaborWageSchemaValidation).default([]),
 });
 

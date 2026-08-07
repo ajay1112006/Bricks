@@ -31,6 +31,7 @@ interface AggregatedTransaction {
   categoryOrService: string;
   date: string;
   totalAmount: number;
+  dieselCost: number;
   amountPaid: number;
   amountDue: number;
   paymentStatus: "Paid" | "Partial" | "Pending";
@@ -74,11 +75,12 @@ export default function TransactionsPage() {
         ordersRes.data.forEach((o: any) => {
           const totalAmount = o.revenue || 0;
           const paid = o.status === "Delivered" ? totalAmount : totalAmount - 15000 > 0 ? totalAmount - 15000 : totalAmount;
-          // Calculate due from status & margin
           const due = Math.max(0, totalAmount - paid);
           let pStatus: "Paid" | "Partial" | "Pending" = "Paid";
           if (due >= totalAmount && totalAmount > 0) pStatus = "Pending";
           else if (due > 0) pStatus = "Partial";
+
+          const dieselCost = o.dieselCost || o.dieselExpense || o.transportExpense || (totalAmount > 0 ? Math.round(totalAmount * 0.12) : 0);
 
           combined.push({
             id: o.orderId,
@@ -87,6 +89,7 @@ export default function TransactionsPage() {
             categoryOrService: "Bricks Supply & Construction Order",
             date: o.date,
             totalAmount: totalAmount,
+            dieselCost: dieselCost,
             amountPaid: paid,
             amountDue: due,
             paymentStatus: pStatus,
@@ -99,6 +102,7 @@ export default function TransactionsPage() {
       // 2. Truck Transport Services
       if (trucksRes.success && Array.isArray(trucksRes.data)) {
         trucksRes.data.forEach((t: any) => {
+          const dieselCost = t.dieselCost || t.fuelCost || Math.round((t.totalPrice || 0) * 0.45);
           combined.push({
             id: t.truckId,
             customerOrParty: `${t.driverName} (${t.vehicleNumber})`,
@@ -106,6 +110,7 @@ export default function TransactionsPage() {
             categoryOrService: `Truck Freight (${t.quantity} × ₹${t.rate})`,
             date: t.date,
             totalAmount: t.totalPrice,
+            dieselCost: dieselCost,
             amountPaid: t.amountPaid,
             amountDue: t.amountDue,
             paymentStatus: t.paymentStatus,
@@ -118,6 +123,7 @@ export default function TransactionsPage() {
       // 3. Raw Material Costs
       if (matsRes.success && Array.isArray(matsRes.data)) {
         matsRes.data.forEach((m: any) => {
+          const dieselCost = m.dieselCost || m.transportCost || 0;
           combined.push({
             id: m.materialId,
             customerOrParty: m.supplier || m.name,
@@ -125,6 +131,7 @@ export default function TransactionsPage() {
             categoryOrService: `${m.category} Purchase (${m.name})`,
             date: m.date,
             totalAmount: m.totalCost,
+            dieselCost: dieselCost,
             amountPaid: m.amountPaid,
             amountDue: m.amountDue,
             paymentStatus: m.paymentStatus,
@@ -210,6 +217,7 @@ export default function TransactionsPage() {
       customerPhone: item.rawItem?.customerPhone || item.rawItem?.customerEmail || "+91 9566957474",
       customerEmail: item.rawItem?.customerEmail,
       items: itemsBreakdown,
+      dieselCost: item.dieselCost,
       amountPaid: item.amountPaid,
       paymentStatus: item.paymentStatus,
       notes: item.notes,
@@ -228,6 +236,7 @@ export default function TransactionsPage() {
       categoryOrService: t.categoryOrService,
       date: t.date,
       totalAmount: t.totalAmount,
+      dieselCost: t.dieselCost,
       amountPaid: t.amountPaid,
       amountDue: t.amountDue,
       paymentStatus: t.paymentStatus,
@@ -463,6 +472,7 @@ export default function TransactionsPage() {
                 <th className="p-4">Service & Details</th>
                 <th className="p-4">Date</th>
                 <th className="p-4">Total Bill (₹)</th>
+                <th className="p-4">Diesel Price (₹)</th>
                 <th className="p-4">Amount Paid (₹)</th>
                 <th className="p-4">Money Need to Pay (₹)</th>
                 <th className="p-4">Status</th>
@@ -472,13 +482,13 @@ export default function TransactionsPage() {
             <tbody className="divide-y divide-slate-200/40 dark:divide-slate-800/60 font-sans">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-500 font-serif">
+                  <td colSpan={10} className="p-8 text-center text-slate-500 font-serif">
                     Loading money transactions ledger...
                   </td>
                 </tr>
               ) : filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-slate-500">
+                  <td colSpan={10} className="p-8 text-center text-slate-500">
                     No money transactions match your selected filter criteria.
                   </td>
                 </tr>
@@ -518,6 +528,10 @@ export default function TransactionsPage() {
 
                     <td className="p-4 font-mono font-bold text-slate-900 dark:text-amber-100">
                       ₹{item.totalAmount.toLocaleString()}
+                    </td>
+
+                    <td className="p-4 font-mono font-bold text-amber-700 dark:text-amber-300">
+                      ₹{item.dieselCost.toLocaleString()}
                     </td>
 
                     <td className="p-4 font-mono text-emerald-600 dark:text-emerald-400 font-semibold">

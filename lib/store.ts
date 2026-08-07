@@ -269,6 +269,7 @@ export interface MockLaborWage {
   name: string;
   rate: number;
   hours: number;
+  advance?: number;
   total: number;
 }
 
@@ -283,6 +284,8 @@ export interface MockHoursRent {
   netBalance: number;
   laborWages: MockLaborWage[];
   totalLaborCost: number;
+  dieselCost?: number;
+  dieselLiters?: number;
   netProfitMargin: number;
   createdAt: string;
 }
@@ -320,6 +323,10 @@ export const memoryStore = {
   updateEmployee: (id: string, updates: Partial<MockEmployee>) => {
     mockEmployees = mockEmployees.map(e => e.employeeId === id ? { ...e, ...updates } : e);
     return mockEmployees.find(e => e.employeeId === id);
+  },
+  deleteEmployee: (id: string) => {
+    mockEmployees = mockEmployees.filter(e => e.employeeId !== id);
+    return true;
   },
 
   getAttendance: (date: string, session: number) => {

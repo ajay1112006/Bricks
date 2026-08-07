@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Search,
   Zap,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from "lucide-react";
 import AttendanceSummary from "./AttendanceSummary";
 import EmployeeManager from "./EmployeeManager";
@@ -85,6 +86,28 @@ export default function SessionTracker() {
         return r;
       })
     );
+  };
+
+  const handleRemoveEmployee = async (employeeId: string, employeeName: string) => {
+    if (!confirm(`Are you sure you want to remove ${employeeName} (${employeeId}) from the staff roster?`)) return;
+
+    try {
+      const res = await fetch(`/api/employees/${employeeId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSaveNotification(`Removed ${employeeName} from employee roster.`);
+        setTimeout(() => setSaveNotification(""), 3000);
+        fetchAttendance();
+      } else {
+        alert(data.error || "Failed to remove employee");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while removing the employee.");
+    }
   };
 
   const handleMarkAll = (targetStatus: "Present" | "Absent") => {
@@ -443,6 +466,16 @@ export default function SessionTracker() {
                         <span>Absent</span>
                       </button>
                     </div>
+
+                    {/* Remove Employee Action Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEmployee(r.employeeId, r.employeeName)}
+                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 transition-all border border-transparent hover:border-rose-500/30 shrink-0"
+                      title={`Remove ${r.employeeName} from staff roster`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );

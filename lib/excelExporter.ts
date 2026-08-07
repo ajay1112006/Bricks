@@ -7,6 +7,7 @@ export interface TransactionExportItem {
   categoryOrService: string;
   date: string;
   totalAmount: number;
+  dieselCost?: number;
   amountPaid: number;
   amountDue: number;
   paymentStatus: "Paid" | "Partial" | "Pending";
@@ -71,6 +72,7 @@ export function exportFinancialAnalyticsToExcel(
     "Service / Category": item.categoryOrService,
     "Date (YYYY-MM-DD)": item.date,
     "Total Amount (₹)": item.totalAmount,
+    "Diesel Price / Expense (₹)": item.dieselCost || 0,
     "Amount Paid (₹)": item.amountPaid,
     "Balance Due / Need to Pay (₹)": item.amountDue,
     "Payment Status": item.paymentStatus,

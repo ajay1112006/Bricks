@@ -70,3 +70,41 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Employee ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const { isMock } = await connectToDatabase();
+    if (isMock) {
+      memoryStore.deleteEmployee(id);
+      return NextResponse.json({ success: true, message: "Employee deleted successfully", isMock: true });
+    }
+
+    const deleted = await EmployeeModel.findOneAndDelete({
+      $or: [{ employeeId: id }, { _id: id }],
+    });
+
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, error: "Employee not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, message: "Employee removed successfully", isMock: false });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to delete employee" },
+      { status: 500 }
+    );
+  }
+}

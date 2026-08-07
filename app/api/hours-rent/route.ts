@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
     const rentId = `RENT-${Math.floor(100 + Math.random() * 900)}`;
     const totalAmount = validatedData.pricePerHour * validatedData.hours;
     const padiPaid = validatedData.padiPaid || 0;
+    const dieselCost = validatedData.dieselCost || 0;
+    const dieselLiters = validatedData.dieselLiters || 0;
     const netBalance = Math.max(0, totalAmount - padiPaid);
 
     // Calculate labor wages
@@ -37,11 +39,12 @@ export async function POST(req: NextRequest) {
       name: w.name,
       rate: w.rate,
       hours: w.hours,
+      advance: w.advance || 0,
       total: w.rate * w.hours,
     }));
 
     const totalLaborCost = processedLaborWages.reduce((acc, curr) => acc + curr.total, 0);
-    const netProfitMargin = totalAmount - totalLaborCost;
+    const netProfitMargin = totalAmount - totalLaborCost - dieselCost;
 
     const payload = {
       rentId,
@@ -54,6 +57,8 @@ export async function POST(req: NextRequest) {
       netBalance,
       laborWages: processedLaborWages,
       totalLaborCost,
+      dieselCost,
+      dieselLiters,
       netProfitMargin,
     };
 
