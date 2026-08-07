@@ -445,8 +445,8 @@ export default function MaterialsPage() {
               <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Qty / Trips:</label>
               <input
                 type="number"
-                step="0.1"
-                min="0.1"
+                step="any"
+                min="0"
                 value={calcQty}
                 onChange={(e) => setCalcQty(Number(e.target.value))}
                 className="w-20 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-500/30 text-sm font-mono font-bold text-slate-900 dark:text-amber-200 focus:outline-none focus:border-amber-500"
@@ -459,7 +459,7 @@ export default function MaterialsPage() {
               <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Unit Rate (₹):</label>
               <input
                 type="number"
-                step="100"
+                step="any"
                 min="0"
                 value={calcRate}
                 onChange={(e) => setCalcRate(Number(e.target.value))}
@@ -1026,8 +1026,8 @@ export default function MaterialsPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.1"
-                      min="0.1"
+                      step="any"
+                      min="0"
                       required
                       value={truckForm.quantity}
                       onChange={(e) => setTruckForm({ ...truckForm, quantity: Number(e.target.value) })}
@@ -1041,7 +1041,7 @@ export default function MaterialsPage() {
                     </label>
                     <input
                       type="number"
-                      step="100"
+                      step="any"
                       min="0"
                       required
                       value={truckForm.rate}

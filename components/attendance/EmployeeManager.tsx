@@ -133,7 +133,7 @@ export default function EmployeeManager({ isOpen, onClose, onEmployeeAdded }: Em
                 <input
                   type="number"
                   min="0"
-                  step="50"
+                  step="any"
                   placeholder="e.g. 800"
                   value={dailySalary}
                   onChange={(e) => setDailySalary(e.target.value)}
@@ -151,7 +151,7 @@ export default function EmployeeManager({ isOpen, onClose, onEmployeeAdded }: Em
                 <input
                   type="number"
                   min="0"
-                  step="100"
+                  step="any"
                   placeholder="e.g. 2000"
                   value={advanceAmount}
                   onChange={(e) => setAdvanceAmount(e.target.value)}

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import AttendanceSummary from "./AttendanceSummary";
 import EmployeeManager from "./EmployeeManager";
+import DayWiseAttendanceReport from "./DayWiseAttendanceReport";
 
 interface AttendanceRecord {
   employeeId: string;
@@ -36,6 +37,7 @@ const SESSIONS = [
 ];
 
 export default function SessionTracker() {
+  const [viewMode, setViewMode] = useState<"mark-in" | "day-report">("mark-in");
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toLocaleDateString("sv")
   );
@@ -143,8 +145,39 @@ export default function SessionTracker() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Controls */}
-      <div className="glass-panel p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* View Mode Navigation Switcher Bar */}
+      <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <button
+          onClick={() => setViewMode("mark-in")}
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            viewMode === "mark-in"
+              ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
+              : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-amber-200"
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          <span>Session Mark-In (4 Shifts)</span>
+        </button>
+
+        <button
+          onClick={() => setViewMode("day-report")}
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            viewMode === "day-report"
+              ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
+              : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-amber-200"
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          <span>Day-Wise Attendance, Salary & Advance Report</span>
+        </button>
+      </div>
+
+      {viewMode === "day-report" ? (
+        <DayWiseAttendanceReport />
+      ) : (
+        <>
+          {/* Top Header & Controls */}
+          <div className="glass-panel p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-amber-100 flex items-center gap-2">
             <span>Elyon Staff Session Mark-In</span>
@@ -417,6 +450,8 @@ export default function SessionTracker() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Employee Manager Modal */}
       <EmployeeManager

@@ -291,7 +291,7 @@ export default function CalibrationModal({
             </p>
             <input
               type="number"
-              step="10"
+              step="any"
               value={marginAdjustment}
               onChange={(e) => setMarginAdjustment(parseFloat(e.target.value) || 0)}
               className="w-full bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm font-mono text-purple-700 dark:text-purple-300 focus:outline-none focus:border-purple-500"

@@ -594,7 +594,7 @@ export default function SplitterPage() {
                     <input
                       type="number"
                       min="0"
-                      step="50"
+                      step="any"
                       required
                       value={pricePerHour}
                       onChange={(e) => setPricePerHour(Number(e.target.value))}
@@ -608,8 +608,8 @@ export default function SplitterPage() {
                     </label>
                     <input
                       type="number"
-                      min="0.5"
-                      step="0.5"
+                      min="0"
+                      step="any"
                       required
                       value={hours}
                       onChange={(e) => handleUpdateGlobalHours(Number(e.target.value))}
@@ -721,8 +721,8 @@ export default function SplitterPage() {
                       <span className="text-slate-400">×</span>
                       <input
                         type="number"
-                        min="0.5"
-                        step="0.5"
+                        min="0"
+                        step="any"
                         value={item.hours}
                         onChange={(e) => handleLaborRowChange(item.id, "hours", Number(e.target.value))}
                         className="w-12 px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-center font-bold text-slate-900 dark:text-amber-100"
@@ -1150,7 +1150,7 @@ export default function SplitterPage() {
                   <input
                     type="number"
                     min="0"
-                    step="5"
+                    step="any"
                     required
                     value={newLaborRate}
                     onChange={(e) => setNewLaborRate(Number(e.target.value))}
@@ -1164,8 +1164,8 @@ export default function SplitterPage() {
                   </label>
                   <input
                     type="number"
-                    min="0.5"
-                    step="0.5"
+                    min="0"
+                    step="any"
                     required
                     value={newLaborHours}
                     onChange={(e) => setNewLaborHours(Number(e.target.value))}

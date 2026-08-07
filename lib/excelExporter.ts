@@ -128,3 +128,105 @@ export function exportFinancialAnalyticsToExcel(
   // Export File
   XLSX.writeFile(workbook, fileName);
 }
+
+export interface DailyAttendanceExportReport {
+  employeeId: string;
+  employeeName: string;
+  role: string;
+  department: string;
+  dailySalary: number;
+  advanceAmount: number;
+  sessionStatus: { s1: boolean; s2: boolean; s3: boolean; s4: boolean };
+  sessionsAttended: number;
+  workCredit: number;
+  dayStatus: string;
+  earnedSalary: number;
+  netPayable: number;
+}
+
+export function exportDailyAttendanceReportToExcel(
+  date: string,
+  summary: {
+    totalEmployees: number;
+    presentCount: number;
+    fullDayCount: number;
+    halfDayCount: number;
+    absentCount: number;
+    totalDailySalary: number;
+    totalAdvance: number;
+    totalNetPayable: number;
+    overallPresenceRate: number;
+  },
+  reports: DailyAttendanceExportReport[],
+  fileName = `Elyon_Traders_Daily_Attendance_Salary_Report_${date}.xlsx`
+) {
+  // 1. Executive Summary Sheet Data
+  const summarySheetData = [
+    { Metric: "COMPANY NAME", Value: "ELYON TRADERS — THE MOST HIGH" },
+    { Metric: "ATTENDANCE REPORT DATE", Value: date },
+    { Metric: "GENERATED AT", Value: new Date().toLocaleString() },
+    { Metric: "", Value: "" },
+    { Metric: "--- DAILY ATTENDANCE & PAYROLL SUMMARY ---", Value: "" },
+    { Metric: "Total Active Staff Count", Value: summary.totalEmployees },
+    { Metric: "Present Staff Count (Attended ≥1 Shift)", Value: summary.presentCount },
+    { Metric: "Full Day Staff (4/4 Shifts)", Value: summary.fullDayCount },
+    { Metric: "Half Day Staff (2/4 Shifts)", Value: summary.halfDayCount },
+    { Metric: "Absent Staff (0/4 Shifts)", Value: summary.absentCount },
+    { Metric: "Overall Presence Rate", Value: `${summary.overallPresenceRate}%` },
+    { Metric: "", Value: "" },
+    { Metric: "--- FINANCIAL & WAGES SUMMARY (₹) ---", Value: "" },
+    { Metric: "Total Daily Earned Wages", Value: `₹${summary.totalDailySalary.toLocaleString()}` },
+    { Metric: "Total Daily Advance Deductions", Value: `₹${summary.totalAdvance.toLocaleString()}` },
+    { Metric: "Total Net Payable Daily Wages", Value: `₹${summary.totalNetPayable.toLocaleString()}` },
+  ];
+
+  // 2. Detailed Employee Roster Rows
+  const rosterRows = reports.map((r, index) => ({
+    "S.No": index + 1,
+    "Employee ID": r.employeeId,
+    "Employee Name": r.employeeName,
+    "Role": r.role,
+    "Department": r.department,
+    "Daily Rate (₹/day)": r.dailySalary,
+    "Session 1 (08:00-10:30)": r.sessionStatus.s1 ? "PRESENT" : "ABSENT",
+    "Session 2 (10:30-13:00)": r.sessionStatus.s2 ? "PRESENT" : "ABSENT",
+    "Session 3 (14:00-16:30)": r.sessionStatus.s3 ? "PRESENT" : "ABSENT",
+    "Session 4 (16:30-19:00)": r.sessionStatus.s4 ? "PRESENT" : "ABSENT",
+    "Shifts Worked": `${r.sessionsAttended}/4`,
+    "Work Credit (Days)": r.workCredit,
+    "Day Status": r.dayStatus,
+    "Earned Daily Wages (₹)": r.earnedSalary,
+    "Advance Paid / Deducted (₹)": r.advanceAmount,
+    "Net Payable Salary (₹)": r.netPayable,
+  }));
+
+  const workbook = XLSX.utils.book_new();
+  const summarySheet = XLSX.utils.json_to_sheet(summarySheetData);
+  const rosterSheet = XLSX.utils.json_to_sheet(rosterRows);
+
+  summarySheet["!cols"] = [{ wch: 45 }, { wch: 35 }];
+  rosterSheet["!cols"] = [
+    { wch: 6 },
+    { wch: 15 },
+    { wch: 25 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 15 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 22 },
+    { wch: 25 },
+    { wch: 22 },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Daily Summary");
+  XLSX.utils.book_append_sheet(workbook, rosterSheet, "Employee Attendance & Wages");
+
+  XLSX.writeFile(workbook, fileName);
+}
+
