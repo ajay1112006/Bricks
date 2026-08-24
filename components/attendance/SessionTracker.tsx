@@ -13,11 +13,13 @@ import {
   Search,
   Zap,
   RotateCcw,
-  Trash2
+  Trash2,
+  Users
 } from "lucide-react";
 import AttendanceSummary from "./AttendanceSummary";
 import EmployeeManager from "./EmployeeManager";
 import DayWiseAttendanceReport from "./DayWiseAttendanceReport";
+import WeeklyTeamRegister from "./WeeklyTeamRegister";
 
 interface AttendanceRecord {
   employeeId: string;
@@ -38,7 +40,7 @@ const SESSIONS = [
 ];
 
 export default function SessionTracker() {
-  const [viewMode, setViewMode] = useState<"mark-in" | "day-report">("mark-in");
+  const [viewMode, setViewMode] = useState<"mark-in" | "weekly-register" | "day-report">("weekly-register");
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toLocaleDateString("sv")
   );
@@ -169,7 +171,19 @@ export default function SessionTracker() {
   return (
     <div className="space-y-6">
       {/* View Mode Navigation Switcher Bar */}
-      <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <button
+          onClick={() => setViewMode("weekly-register")}
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            viewMode === "weekly-register"
+              ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
+              : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-amber-200"
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Weekly Team Register & Wage Sheet</span>
+        </button>
+
         <button
           onClick={() => setViewMode("mark-in")}
           className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -195,7 +209,9 @@ export default function SessionTracker() {
         </button>
       </div>
 
-      {viewMode === "day-report" ? (
+      {viewMode === "weekly-register" ? (
+        <WeeklyTeamRegister />
+      ) : viewMode === "day-report" ? (
         <DayWiseAttendanceReport />
       ) : (
         <>

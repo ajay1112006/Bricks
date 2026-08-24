@@ -292,6 +292,57 @@ export interface MockHoursRent {
 
 let mockHoursRents: MockHoursRent[] = [];
 
+export interface MockWeeklyDailyRecord {
+  date: string;
+  dayName: string;
+  status: "P" | "A" | "0.5" | "";
+  advance: number;
+}
+
+export interface MockWeeklyWorkerRow {
+  employeeId: string;
+  employeeName: string;
+  role?: string;
+  dailySalary: number;
+  dailyRecords: MockWeeklyDailyRecord[];
+  totalWorkingDays: number;
+  totalWeekSalary: number;
+  totalAdvance: number;
+  balance: number;
+}
+
+export interface MockTeamExtraExpense {
+  id?: string;
+  description: string;
+  amount: number;
+}
+
+export interface MockWeeklyTeamGroup {
+  teamName: string;
+  oldBalance?: number;
+  extraExpenses?: MockTeamExtraExpense[];
+  members: MockWeeklyWorkerRow[];
+  totalTeamDays: number;
+  totalTeamSalary: number;
+  totalTeamAdvance: number;
+  totalTeamBalance: number;
+  totalTeamExtraExpenses: number;
+  grandTotalPayable: number;
+}
+
+export interface MockWeeklyTeamRegister {
+  weekId: string;
+  startDate: string;
+  endDate: string;
+  monthName: string;
+  year: number;
+  teams: MockWeeklyTeamGroup[];
+  notes?: string;
+  updatedAt: string;
+}
+
+let mockWeeklyRegisters: MockWeeklyTeamRegister[] = [];
+
 export const memoryStore = {
   getEmployees: () => mockEmployees,
   setEmployees: (employees: MockEmployee[]) => { mockEmployees = employees; },
@@ -325,6 +376,23 @@ export const memoryStore = {
       mockAttendance.push(updatedRecord);
     }
     return updatedRecord;
+  },
+
+  getWeeklyRegister: (startDate: string) => {
+    return mockWeeklyRegisters.find(r => r.startDate === startDate);
+  },
+  saveWeeklyRegister: (register: MockWeeklyTeamRegister) => {
+    const existingIndex = mockWeeklyRegisters.findIndex(r => r.startDate === register.startDate);
+    const updated = {
+      ...register,
+      updatedAt: new Date().toISOString()
+    };
+    if (existingIndex >= 0) {
+      mockWeeklyRegisters[existingIndex] = updated;
+    } else {
+      mockWeeklyRegisters.push(updated);
+    }
+    return updated;
   },
 
   getOrders: () => mockOrders,
@@ -451,5 +519,3 @@ export const memoryStore = {
     // re-initialize seed
   }
 };
-
-

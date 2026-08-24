@@ -232,3 +232,165 @@ export function exportDailyAttendanceReportToExcel(
   XLSX.writeFile(workbook, fileName);
 }
 
+export function exportWeeklyTeamRegisterToExcel(
+  register: {
+    startDate: string;
+    endDate: string;
+    monthName: string;
+    year: number;
+    teams: Array<{
+      teamName: string;
+      oldBalance?: number;
+      extraExpenses?: Array<{ description: string; amount: number }>;
+      members: Array<{
+        employeeId: string;
+        employeeName: string;
+        role?: string;
+        dailySalary: number;
+        dailyRecords: Array<{ date: string; dayName: string; status: string; advance: number }>;
+        totalWorkingDays: number;
+        totalWeekSalary: number;
+        totalAdvance: number;
+        balance: number;
+      }>;
+      totalTeamDays: number;
+      totalTeamSalary: number;
+      totalTeamAdvance: number;
+      totalTeamBalance: number;
+      totalTeamExtraExpenses: number;
+      grandTotalPayable: number;
+    }>;
+  },
+  fileName?: string
+) {
+  const defaultFileName = `Elyon_Traders_Weekly_Team_Attendance_${register.startDate}_to_${register.endDate}.xlsx`;
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Overall Summary Sheet
+  const overallSummary = [
+    { Field: "COMPANY", Value: "ELYON TRADERS — THE MOST HIGH" },
+    { Field: "WEEKLY WAGE & ATTENDANCE REGISTER", Value: `${register.startDate} to ${register.endDate}` },
+    { Field: "PERIOD", Value: `${register.monthName} ${register.year}` },
+    { Field: "", Value: "" },
+    { Field: "--- TEAMS BREAKDOWN ---", Value: "" },
+  ];
+
+  let enterpriseTotalSalary = 0;
+  let enterpriseTotalAdvance = 0;
+  let enterpriseTotalBalance = 0;
+  let enterpriseTotalExpenses = 0;
+  let enterpriseGrandTotal = 0;
+
+  register.teams.forEach((t) => {
+    enterpriseTotalSalary += t.totalTeamSalary;
+    enterpriseTotalAdvance += t.totalTeamAdvance;
+    enterpriseTotalBalance += t.totalTeamBalance;
+    enterpriseTotalExpenses += t.totalTeamExtraExpenses || 0;
+    enterpriseGrandTotal += t.grandTotalPayable;
+
+    overallSummary.push({
+      Field: `Team: ${t.teamName}`,
+      Value: `Workers: ${t.members.length} | Days: ${t.totalTeamDays} | Wages: ₹${t.totalTeamSalary.toLocaleString()} | Advance: ₹${t.totalTeamAdvance.toLocaleString()} | Balance: ₹${t.totalTeamBalance.toLocaleString()} | Grand Total: ₹${t.grandTotalPayable.toLocaleString()}`,
+    });
+  });
+
+  overallSummary.push(
+    { Field: "", Value: "" },
+    { Field: "--- ENTERPRISE GRAND TOTALS ---", Value: "" },
+    { Field: "Total Week Wages Disbursed", Value: `₹${enterpriseTotalSalary.toLocaleString()}` },
+    { Field: "Total Cash Advances Given", Value: `₹${enterpriseTotalAdvance.toLocaleString()}` },
+    { Field: "Total Net Wages Balance", Value: `₹${enterpriseTotalBalance.toLocaleString()}` },
+    { Field: "Total Extra Expenses (Machine/Cleaning)", Value: `₹${enterpriseTotalExpenses.toLocaleString()}` },
+    { Field: "Grand Total Enterprise Payout", Value: `₹${enterpriseGrandTotal.toLocaleString()}` }
+  );
+
+  const summarySheet = XLSX.utils.json_to_sheet(overallSummary);
+  summarySheet["!cols"] = [{ wch: 35 }, { wch: 80 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Enterprise Summary");
+
+  // 2. Individual Team Sheets
+  register.teams.forEach((team) => {
+    const rows: any[] = [];
+
+    team.members.forEach((m, idx) => {
+      const row: any = {
+        "S.No": idx + 1,
+        "Worker Name": m.employeeName,
+        "ID": m.employeeId,
+        "Role": m.role || "Staff",
+      };
+
+      m.dailyRecords.forEach((dr) => {
+        const shortDay = dr.dayName.substring(0, 3);
+        const dayLabel = `${shortDay} (${dr.date.split("-").slice(1).join("/")})`;
+        row[`${dayLabel} Status`] = dr.status || "-";
+        row[`${dayLabel} Adv (₹)`] = dr.advance > 0 ? dr.advance : 0;
+      });
+
+      row["Total Working Days"] = m.totalWorkingDays;
+      row["Daily Salary (₹)"] = m.dailySalary;
+      row["Total Week Salary (₹)"] = m.totalWeekSalary;
+      row["Total Advance (₹)"] = m.totalAdvance;
+      row["Net Balance (₹)"] = m.balance;
+
+      rows.push(row);
+    });
+
+    // Append Team Totals Row
+    const totalRow: any = {
+      "S.No": "TOTAL",
+      "Worker Name": `${team.teamName} SUMMARY`,
+      "ID": "",
+      "Role": "",
+    };
+    if (team.members.length > 0 && team.members[0].dailyRecords) {
+      team.members[0].dailyRecords.forEach((dr) => {
+        const shortDay = dr.dayName.substring(0, 3);
+        const dayLabel = `${shortDay} (${dr.date.split("-").slice(1).join("/")})`;
+        totalRow[`${dayLabel} Status`] = "";
+        totalRow[`${dayLabel} Adv (₹)`] = team.members.reduce((acc, mem) => {
+          const rec = mem.dailyRecords.find((r) => r.date === dr.date);
+          return acc + (rec?.advance || 0);
+        }, 0);
+      });
+    }
+
+    totalRow["Total Working Days"] = team.totalTeamDays;
+    totalRow["Daily Salary (₹)"] = "-";
+    totalRow["Total Week Salary (₹)"] = team.totalTeamSalary;
+    totalRow["Total Advance (₹)"] = team.totalTeamAdvance;
+    totalRow["Net Balance (₹)"] = team.totalTeamBalance;
+    rows.push(totalRow);
+
+    // Extra rows if team has extra expenses or old balance
+    if (team.oldBalance) {
+      rows.push({
+        "S.No": "",
+        "Worker Name": "OLD BALANCE CARRYOVER",
+        "Net Balance (₹)": team.oldBalance,
+      });
+    }
+    if (team.extraExpenses && team.extraExpenses.length > 0) {
+      team.extraExpenses.forEach((ex) => {
+        rows.push({
+          "S.No": "",
+          "Worker Name": `EXTRA: ${ex.description}`,
+          "Net Balance (₹)": ex.amount,
+        });
+      });
+    }
+    rows.push({
+      "S.No": "FINAL",
+      "Worker Name": `GRAND TOTAL PAYABLE (${team.teamName})`,
+      "Net Balance (₹)": team.grandTotalPayable,
+    });
+
+    const teamSheet = XLSX.utils.json_to_sheet(rows);
+    const sheetName = team.teamName.replace(/[\\/*?:[\]]/g, "").substring(0, 30);
+    XLSX.utils.book_append_sheet(workbook, teamSheet, sheetName);
+  });
+
+  XLSX.writeFile(workbook, fileName || defaultFileName);
+}
+
+

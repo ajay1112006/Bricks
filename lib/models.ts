@@ -263,4 +263,107 @@ const HoursRentSchema = new Schema<IHoursRent>({
 export const HoursRentModel: Model<IHoursRent> =
   mongoose.models.HoursRent || mongoose.model<IHoursRent>("HoursRent", HoursRentSchema);
 
+// --- WEEKLY TEAM ATTENDANCE & WAGE REGISTER MODEL ---
+export interface IWeeklyDailyRecord {
+  date: string; // YYYY-MM-DD
+  dayName: string; // "MONDAY", "TUESDAY", ...
+  status: "P" | "A" | "0.5" | "";
+  advance: number; // Daily advance cash given
+}
+
+export interface IWeeklyWorkerRow {
+  employeeId: string;
+  employeeName: string;
+  role?: string;
+  dailySalary: number; // Daily rate (e.g. 1000, 900, 800, 750)
+  dailyRecords: IWeeklyDailyRecord[]; // 6 days (Mon-Sat)
+  totalWorkingDays: number;
+  totalWeekSalary: number;
+  totalAdvance: number;
+  balance: number;
+}
+
+export interface ITeamExtraExpense {
+  id?: string;
+  description: string; // e.g. "MACHINE CLEANING 150*4", "SANJAY CLEANING"
+  amount: number;
+}
+
+export interface IWeeklyTeamGroup {
+  teamName: string; // "LUCCAS TEAM", "PRINCE TEAM", "GOPAL TEAM"
+  oldBalance?: number; // e.g. 700
+  extraExpenses?: ITeamExtraExpense[];
+  members: IWeeklyWorkerRow[];
+  totalTeamDays: number;
+  totalTeamSalary: number;
+  totalTeamAdvance: number;
+  totalTeamBalance: number;
+  totalTeamExtraExpenses: number;
+  grandTotalPayable: number;
+}
+
+export interface IWeeklyTeamRegister extends Document {
+  weekId: string; // "WTR-YYYY-MM-DD" (start date based)
+  startDate: string; // Monday YYYY-MM-DD
+  endDate: string; // Saturday YYYY-MM-DD
+  monthName: string; // e.g. "JULY", "AUGUST"
+  year: number;
+  teams: IWeeklyTeamGroup[];
+  notes?: string;
+  updatedAt: Date;
+}
+
+const WeeklyDailyRecordSchema = new Schema<IWeeklyDailyRecord>({
+  date: { type: String, required: true },
+  dayName: { type: String, required: true },
+  status: { type: String, default: "" },
+  advance: { type: Number, default: 0, min: 0 }
+}, { _id: false });
+
+const WeeklyWorkerRowSchema = new Schema<IWeeklyWorkerRow>({
+  employeeId: { type: String, required: true },
+  employeeName: { type: String, required: true },
+  role: { type: String, default: "Staff" },
+  dailySalary: { type: Number, required: true, default: 0, min: 0 },
+  dailyRecords: [WeeklyDailyRecordSchema],
+  totalWorkingDays: { type: Number, default: 0, min: 0 },
+  totalWeekSalary: { type: Number, default: 0, min: 0 },
+  totalAdvance: { type: Number, default: 0, min: 0 },
+  balance: { type: Number, default: 0 }
+}, { _id: false });
+
+const TeamExtraExpenseSchema = new Schema<ITeamExtraExpense>({
+  id: { type: String, default: () => Math.random().toString(36).substring(2, 9) },
+  description: { type: String, required: true },
+  amount: { type: Number, required: true, min: 0 }
+}, { _id: false });
+
+const WeeklyTeamGroupSchema = new Schema<IWeeklyTeamGroup>({
+  teamName: { type: String, required: true },
+  oldBalance: { type: Number, default: 0 },
+  extraExpenses: [TeamExtraExpenseSchema],
+  members: [WeeklyWorkerRowSchema],
+  totalTeamDays: { type: Number, default: 0 },
+  totalTeamSalary: { type: Number, default: 0 },
+  totalTeamAdvance: { type: Number, default: 0 },
+  totalTeamBalance: { type: Number, default: 0 },
+  totalTeamExtraExpenses: { type: Number, default: 0 },
+  grandTotalPayable: { type: Number, default: 0 }
+}, { _id: false });
+
+const WeeklyTeamRegisterSchema = new Schema<IWeeklyTeamRegister>({
+  weekId: { type: String, required: true, unique: true, index: true },
+  startDate: { type: String, required: true, index: true },
+  endDate: { type: String, required: true },
+  monthName: { type: String, default: "" },
+  year: { type: Number, default: () => new Date().getFullYear() },
+  teams: [WeeklyTeamGroupSchema],
+  notes: { type: String, default: "" },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+export const WeeklyTeamRegisterModel: Model<IWeeklyTeamRegister> =
+  mongoose.models.WeeklyTeamRegister || mongoose.model<IWeeklyTeamRegister>("WeeklyTeamRegister", WeeklyTeamRegisterSchema);
+
+
 

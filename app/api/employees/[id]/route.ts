@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db";
 import { EmployeeModel } from "@/lib/models";
 import { memoryStore } from "@/lib/store";
@@ -22,9 +23,12 @@ export async function DELETE(
       return NextResponse.json({ success: true, message: "Employee removed from roster", isMock: true });
     }
 
-    const deleted = await EmployeeModel.findOneAndDelete({
-      $or: [{ employeeId: id }, { _id: id }],
-    });
+    const isMongoId = mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id;
+    const query = isMongoId
+      ? { $or: [{ employeeId: id }, { _id: id }] }
+      : { employeeId: id };
+
+    const deleted = await EmployeeModel.findOneAndDelete(query);
 
     if (!deleted) {
       return NextResponse.json(
