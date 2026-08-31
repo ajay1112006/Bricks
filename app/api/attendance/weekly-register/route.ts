@@ -141,10 +141,14 @@ export async function POST(req: NextRequest) {
           const adv = Number(dr.advance) || 0;
           workerAdvance += adv;
 
-          if (dr.status === "P") {
+          if (dr.status === "P" || dr.status === "1") {
             workerDays += 1;
-          } else if (dr.status === "0.5") {
+          } else if (dr.status === "0.75" || dr.status === ".75" || dr.status === "3/4") {
+            workerDays += 0.75;
+          } else if (dr.status === "0.5" || dr.status === ".5" || dr.status === "1/2") {
             workerDays += 0.5;
+          } else if (dr.status === "0.25" || dr.status === ".25" || dr.status === "1/4") {
+            workerDays += 0.25;
           }
 
           return {
@@ -216,6 +220,15 @@ export async function POST(req: NextRequest) {
     const { isMock } = await connectToDatabase();
 
     if (isMock) {
+      // Sync salary to mock employees
+      for (const t of calculatedTeams) {
+        for (const m of t.members) {
+          if (m.employeeId && m.dailySalary > 0) {
+            memoryStore.updateEmployee(m.employeeId, { dailySalary: m.dailySalary });
+          }
+        }
+      }
+
       const saved = memoryStore.saveWeeklyRegister({
         ...registerPayload,
         updatedAt: new Date().toISOString(),
@@ -228,6 +241,22 @@ export async function POST(req: NextRequest) {
       { $set: registerPayload },
       { upsert: true, new: true, runValidators: true }
     );
+
+    // Sync updated dailySalary to EmployeeModel master records
+    try {
+      for (const t of calculatedTeams) {
+        for (const m of t.members) {
+          if (m.employeeId && m.dailySalary > 0) {
+            await EmployeeModel.findOneAndUpdate(
+              { employeeId: m.employeeId },
+              { $set: { dailySalary: m.dailySalary } }
+            );
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.warn("Could not sync employee master salaries:", syncErr);
+    }
 
     return NextResponse.json({ success: true, data: savedDoc, isMock: false });
   } catch (error: any) {

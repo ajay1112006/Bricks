@@ -23,14 +23,18 @@ import {
   Wrench,
   RotateCcw,
   UserPlus,
+  Edit2,
+  User,
+  Briefcase,
 } from "lucide-react";
 import { exportWeeklyTeamRegisterToExcel } from "@/lib/excelExporter";
 import { downloadElementAsPDF } from "@/lib/pdfGenerator";
+import EmployeeManager from "./EmployeeManager";
 
 interface DailyRecord {
   date: string;
   dayName: string;
-  status: "P" | "A" | "0.5" | "";
+  status: "P" | "1" | "0.75" | "0.5" | "0.25" | "A" | "" | string;
   advance: number;
 }
 
@@ -109,7 +113,21 @@ export default function WeeklyTeamRegister() {
   const [expenseDesc, setExpenseDesc] = useState<string>("");
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
 
+  // Edit Worker Modal / State
+  const [editingWorkerInfo, setEditingWorkerInfo] = useState<{
+    teamIdx: number;
+    memberIdx: number;
+    worker: WorkerRow;
+  } | null>(null);
+  const [editWorkerName, setEditWorkerName] = useState<string>("");
+  const [editWorkerRole, setEditWorkerRole] = useState<string>("");
+  const [editWorkerSalary, setEditWorkerSalary] = useState<number>(0);
+  const [syncToMaster, setSyncToMaster] = useState<boolean>(true);
+  const [savingWorkerEdit, setSavingWorkerEdit] = useState<boolean>(false);
+  const [isEmployeeManagerOpen, setIsEmployeeManagerOpen] = useState<boolean>(false);
+
   const printReportRef = useRef<HTMLDivElement>(null);
+  const pdfPrintRef = useRef<HTMLDivElement>(null);
 
   // Fetch or initialize register for selected Monday
   const fetchWeeklyRegister = useCallback(async (mondayStr: string) => {
@@ -169,8 +187,10 @@ export default function WeeklyTeamRegister() {
         let wAdvance = 0;
 
         m.dailyRecords.forEach((dr) => {
-          if (dr.status === "P") wDays += 1;
-          else if (dr.status === "0.5") wDays += 0.5;
+          if (dr.status === "P" || dr.status === "1") wDays += 1;
+          else if (dr.status === "0.75" || dr.status === ".75" || dr.status === "3/4") wDays += 0.75;
+          else if (dr.status === "0.5" || dr.status === ".5" || dr.status === "1/2") wDays += 0.5;
+          else if (dr.status === "0.25" || dr.status === ".25" || dr.status === "1/4") wDays += 0.25;
           wAdvance += Number(dr.advance) || 0;
         });
 
@@ -216,16 +236,18 @@ export default function WeeklyTeamRegister() {
     };
   };
 
-  // Toggle P / A / 0.5 Status
+  // Toggle P (1.0) -> 0.75 -> 0.5 -> 0.25 -> A -> "" -> P
   const handleToggleDayStatus = (teamIdx: number, memberIdx: number, dayIdx: number) => {
     if (!register) return;
     const newReg = JSON.parse(JSON.stringify(register)) as WeeklyRegisterData;
     const currentStatus = newReg.teams[teamIdx].members[memberIdx].dailyRecords[dayIdx].status;
 
-    let nextStatus: "P" | "A" | "0.5" | "" = "P";
-    if (currentStatus === "P") nextStatus = "A";
-    else if (currentStatus === "A") nextStatus = "0.5";
-    else if (currentStatus === "0.5") nextStatus = "";
+    let nextStatus: "P" | "0.75" | "0.5" | "0.25" | "A" | "" = "P";
+    if (currentStatus === "P" || currentStatus === "1") nextStatus = "0.75";
+    else if (currentStatus === "0.75" || currentStatus === ".75") nextStatus = "0.5";
+    else if (currentStatus === "0.5" || currentStatus === ".5") nextStatus = "0.25";
+    else if (currentStatus === "0.25" || currentStatus === ".25") nextStatus = "A";
+    else if (currentStatus === "A") nextStatus = "";
     else nextStatus = "P";
 
     newReg.teams[teamIdx].members[memberIdx].dailyRecords[dayIdx].status = nextStatus;
@@ -337,6 +359,57 @@ export default function WeeklyTeamRegister() {
       (e) => e.id !== expenseId
     );
     setRegister(recalculateRegister(newReg));
+  };
+
+  // Open Edit Worker Modal
+  const handleOpenEditWorker = (teamIdx: number, memberIdx: number) => {
+    if (!register) return;
+    const worker = register.teams[teamIdx].members[memberIdx];
+    setEditingWorkerInfo({ teamIdx, memberIdx, worker });
+    setEditWorkerName(worker.employeeName);
+    setEditWorkerRole(worker.role || "Labor");
+    setEditWorkerSalary(worker.dailySalary || 0);
+    setSyncToMaster(true);
+  };
+
+  // Save Worker Edit Changes
+  const handleSaveWorkerEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWorkerInfo || !register) return;
+
+    const { teamIdx, memberIdx } = editingWorkerInfo;
+    const newReg = JSON.parse(JSON.stringify(register)) as WeeklyRegisterData;
+    const targetMember = newReg.teams[teamIdx].members[memberIdx];
+
+    targetMember.employeeName = editWorkerName.trim().toUpperCase();
+    targetMember.role = editWorkerRole.trim() || "Labor";
+    targetMember.dailySalary = Math.max(0, Number(editWorkerSalary) || 0);
+
+    const recalculated = recalculateRegister(newReg);
+    setRegister(recalculated);
+    setSavingWorkerEdit(true);
+
+    if (syncToMaster && targetMember.employeeId) {
+      try {
+        await fetch("/api/employees", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: targetMember.employeeId,
+            name: targetMember.employeeName,
+            role: targetMember.role,
+            dailySalary: targetMember.dailySalary,
+          }),
+        });
+      } catch (err) {
+        console.warn("Could not sync employee to master:", err);
+      }
+    }
+
+    setSavingWorkerEdit(false);
+    setEditingWorkerInfo(null);
+    setSaveSuccessMsg(`Updated salary & details for ${targetMember.employeeName}!`);
+    setTimeout(() => setSaveSuccessMsg(""), 3500);
   };
 
   // Add New Team
@@ -491,19 +564,30 @@ export default function WeeklyTeamRegister() {
           {/* Export / Print PDF */}
           <button
             onClick={() => {
-              if (printReportRef.current && register) {
+              const targetToPrint = pdfPrintRef.current || printReportRef.current;
+              if (targetToPrint && register) {
                 downloadElementAsPDF(
-                  printReportRef.current,
-                  `Elyon_Weekly_Team_Register_${register.startDate}.pdf`
+                  targetToPrint,
+                  `Elyon_Traders_Weekly_Team_Register_${register.startDate}.pdf`
                 );
               }
             }}
             disabled={!register || loading}
             className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all disabled:opacity-50"
-            title="Download PDF Document"
+            title="Download Full Filled PDF Report"
           >
             <Download className="w-4 h-4" />
             <span>PDF Print</span>
+          </button>
+
+          {/* Manage Master Staff & Salaries */}
+          <button
+            onClick={() => setIsEmployeeManagerOpen(true)}
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500 hover:text-white transition-all"
+            title="Manage Labours & Default Wage Rates"
+          >
+            <Users className="w-4 h-4" />
+            <span>Labour Salaries</span>
           </button>
 
           {/* Save to DB */}
@@ -536,63 +620,63 @@ export default function WeeklyTeamRegister() {
       {/* Enterprise KPI Metric Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="glass-panel p-3 border-l-4 border-l-amber-500">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Active Teams
           </span>
-          <div className="text-xl font-mono font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+          <div className="text-2xl font-mono font-black text-slate-900 dark:text-slate-100 mt-0.5">
             {register?.teams.length || 0}
           </div>
-          <span className="text-[10px] text-slate-400">Total contractor units</span>
+          <span className="text-[10px] font-semibold text-slate-500">Total contractor units</span>
         </div>
 
         <div className="glass-panel p-3 border-l-4 border-l-blue-500">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Workforce
           </span>
-          <div className="text-xl font-mono font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+          <div className="text-2xl font-mono font-black text-slate-900 dark:text-slate-100 mt-0.5">
             {enterpriseTotals.workersCount}
           </div>
-          <span className="text-[10px] text-slate-400">Workers enrolled</span>
+          <span className="text-[10px] font-semibold text-slate-500">Workers enrolled</span>
         </div>
 
         <div className="glass-panel p-3 border-l-4 border-l-indigo-500">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Days Worked
           </span>
-          <div className="text-xl font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
+          <div className="text-2xl font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
             {enterpriseTotals.totalDays}
           </div>
-          <span className="text-[10px] text-slate-400">Total shift units</span>
+          <span className="text-[10px] font-semibold text-slate-500">Total shift units</span>
         </div>
 
         <div className="glass-panel p-3 border-l-4 border-l-emerald-500">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Total Wages
           </span>
-          <div className="text-xl font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+          <div className="text-2xl font-mono font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
             ₹{enterpriseTotals.totalSalary.toLocaleString()}
           </div>
-          <span className="text-[10px] text-slate-400">Gross earned</span>
+          <span className="text-[10px] font-semibold text-slate-500">Gross earned</span>
         </div>
 
         <div className="glass-panel p-3 border-l-4 border-l-rose-500">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Advances Given
           </span>
-          <div className="text-xl font-mono font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+          <div className="text-2xl font-mono font-black text-rose-700 dark:text-rose-300 mt-0.5">
             ₹{enterpriseTotals.totalAdvance.toLocaleString()}
           </div>
-          <span className="text-[10px] text-slate-400">Total cash advance</span>
+          <span className="text-[10px] font-semibold text-slate-500">Total cash advance</span>
         </div>
 
         <div className="glass-panel p-3 border-l-4 border-l-amber-500 bg-amber-500/5 dark:bg-amber-500/10">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+          <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
             Grand Payout
           </span>
-          <div className="text-xl font-mono font-bold text-amber-700 dark:text-amber-300 mt-0.5">
+          <div className="text-2xl font-mono font-black text-amber-800 dark:text-amber-200 mt-0.5">
             ₹{enterpriseTotals.grandTotal.toLocaleString()}
           </div>
-          <span className="text-[10px] text-slate-400">Net + Extras + Old Bal</span>
+          <span className="text-[10px] font-semibold text-slate-500">Net + Extras + Old Bal</span>
         </div>
       </div>
 
@@ -726,74 +810,20 @@ export default function WeeklyTeamRegister() {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => handleBulkSetStatus(actualTeamIdx, "P")}
-                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all"
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all"
                       title="Mark all workers Present for the whole week"
                     >
                       All Present
                     </button>
                     <button
                       onClick={() => handleBulkSetStatus(actualTeamIdx, "A")}
-                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all"
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500 hover:text-white border border-rose-500/20 transition-all"
                       title="Mark all workers Absent"
                     >
                       All Absent
                     </button>
-
-                    <button
-                      onClick={() => setAddingWorkerTeamIdx(actualTeamIdx)}
-                      className="flex items-center space-x-1 px-3 py-1 text-[11px] font-bold rounded-lg bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-all"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      <span>Add Worker</span>
-                    </button>
                   </div>
                 </div>
-
-                {/* Inline Add Worker Form */}
-                {addingWorkerTeamIdx === actualTeamIdx && (
-                  <div className="p-3.5 bg-amber-500/5 dark:bg-amber-500/10 border-b border-amber-500/20 flex flex-wrap items-center gap-3 animate-fadeIn">
-                    <span className="text-xs font-bold text-amber-800 dark:text-amber-200">
-                      Add Worker to {team.teamName}:
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Worker Name (e.g. SATHISH)"
-                      value={newWorkerName}
-                      onChange={(e) => setNewWorkerName(e.target.value)}
-                      className="px-3 py-1.5 text-xs bg-white dark:bg-slate-950 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-semibold"
-                      autoFocus
-                    />
-                    <div className="flex items-center space-x-1 text-xs">
-                      <span className="text-slate-500">Rate: ₹</span>
-                      <input
-                        type="number"
-                        placeholder="800"
-                        value={newWorkerSalary}
-                        onChange={(e) => setNewWorkerSalary(Number(e.target.value))}
-                        className="w-20 px-2 py-1.5 text-xs bg-white dark:bg-slate-950 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono"
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Role (e.g. Labor)"
-                      value={newWorkerRole}
-                      onChange={(e) => setNewWorkerRole(e.target.value)}
-                      className="w-28 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-950 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                    />
-                    <button
-                      onClick={() => handleAddWorkerToTeam(actualTeamIdx)}
-                      className="px-3 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-600"
-                    >
-                      Save Worker
-                    </button>
-                    <button
-                      onClick={() => setAddingWorkerTeamIdx(null)}
-                      className="p-1.5 text-slate-400 hover:text-slate-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
 
                 {/* Team Multi-Day Register Table */}
                 <div className="overflow-x-auto">
@@ -802,7 +832,7 @@ export default function WeeklyTeamRegister() {
                       <tr className="bg-slate-100/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                         <th className="p-2.5 w-10 text-center font-bold">#</th>
                         <th className="p-2.5 min-w-[140px] font-bold">WORKER</th>
-                        <th className="p-2.5 w-24 text-center font-bold">RATE (₹/day)</th>
+                        <th className="p-2.5 min-w-[90px] text-center font-bold">RATE (₹/day)</th>
 
                         {/* Mon to Sat Days */}
                         {team.members[0]?.dailyRecords.map((dr, dayIdx) => (
@@ -831,7 +861,7 @@ export default function WeeklyTeamRegister() {
                         <th className="p-2.5 w-28 text-right font-bold bg-amber-50/50 dark:bg-amber-950/20 border-l border-slate-200 dark:border-slate-800 text-amber-700 dark:text-amber-300">
                           BALANCE
                         </th>
-                        <th className="p-2.5 w-10 text-center"></th>
+                        <th className="p-2.5 min-w-[70px] text-center font-bold">ACTIONS</th>
                       </tr>
                     </thead>
 
@@ -866,28 +896,35 @@ export default function WeeklyTeamRegister() {
 
                             {/* Daily Rate Input */}
                             <td className="p-2 text-center">
-                              <input
-                                type="number"
-                                value={m.dailySalary || ""}
-                                onChange={(e) =>
-                                  handleSalaryRateChange(actualTeamIdx, mIdx, e.target.value)
-                                }
-                                className="w-16 px-1.5 py-1 text-center font-mono font-semibold text-xs bg-slate-100/80 dark:bg-slate-950/80 rounded border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-amber-500 text-slate-900 dark:text-slate-100"
-                              />
+                              <div className="inline-flex items-center justify-center">
+                                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 mr-0.5 select-none">₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={m.dailySalary !== undefined && m.dailySalary !== null ? m.dailySalary : ""}
+                                  onChange={(e) =>
+                                    handleSalaryRateChange(actualTeamIdx, mIdx, e.target.value)
+                                  }
+                                  title="Click to edit Labour Wage Rate (₹/day)"
+                                  className="w-16 py-1 text-center font-mono font-bold text-xs bg-amber-500/10 hover:bg-amber-500/20 focus:bg-white dark:focus:bg-slate-900 rounded border border-amber-500/40 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-slate-900 dark:text-slate-100 outline-none transition-all"
+                                />
+                              </div>
                             </td>
 
                             {/* 6 Day Columns (Mon - Sat) */}
                             {m.dailyRecords.map((dr, dayIdx) => {
-                              const isPresent = dr.status === "P";
+                              const isPresent = dr.status === "P" || dr.status === "1";
+                              const isThreeQuarter = dr.status === "0.75" || dr.status === ".75";
+                              const isHalf = dr.status === "0.5" || dr.status === ".5";
+                              const isQuarter = dr.status === "0.25" || dr.status === ".25";
                               const isAbsent = dr.status === "A";
-                              const isHalf = dr.status === "0.5";
 
                               return (
                                 <td
                                   key={dr.date}
                                   className="p-1.5 text-center border-l border-slate-100 dark:border-slate-800/80 align-top"
                                 >
-                                  {/* P / A / 0.5 Toggle Badge */}
+                                  {/* Fractional Day Toggle Badge */}
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -896,13 +933,17 @@ export default function WeeklyTeamRegister() {
                                     className={`w-full py-1 rounded text-[11px] font-bold transition-all shadow-xs flex items-center justify-center space-x-1 ${
                                       isPresent
                                         ? "bg-emerald-600 text-white shadow-emerald-600/20"
-                                        : isAbsent
-                                        ? "bg-rose-600 text-white shadow-rose-600/20"
+                                        : isThreeQuarter
+                                        ? "bg-teal-600 text-white shadow-teal-600/20"
                                         : isHalf
                                         ? "bg-amber-500 text-white shadow-amber-500/20"
+                                        : isQuarter
+                                        ? "bg-purple-600 text-white shadow-purple-600/20"
+                                        : isAbsent
+                                        ? "bg-rose-600 text-white shadow-rose-600/20"
                                         : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200"
                                     }`}
-                                    title={`Click to cycle: Present (P) -> Absent (A) -> Half Day (0.5) -> None`}
+                                    title={`Click to cycle: Present (P) -> 0.75 -> 0.5 -> 0.25 -> Absent (A) -> None`}
                                   >
                                     <span>{dr.status || "-"}</span>
                                   </button>
@@ -935,34 +976,43 @@ export default function WeeklyTeamRegister() {
                             })}
 
                             {/* Total Working Days */}
-                            <td className="p-2 text-center font-mono font-bold text-xs bg-indigo-50/30 dark:bg-indigo-950/10 border-l border-slate-200 dark:border-slate-800 text-indigo-700 dark:text-indigo-300">
+                            <td className="p-2 text-center font-mono font-black text-sm bg-indigo-50/50 dark:bg-indigo-950/20 border-l border-slate-200 dark:border-slate-800 text-indigo-950 dark:text-indigo-200">
                               {m.totalWorkingDays}
                             </td>
 
                             {/* Total Week Salary */}
-                            <td className="p-2 text-right font-mono font-bold text-xs bg-emerald-50/30 dark:bg-emerald-950/10 border-l border-slate-200 dark:border-slate-800 text-emerald-700 dark:text-emerald-400">
+                            <td className="p-2 text-right font-mono font-black text-sm bg-emerald-50/50 dark:bg-emerald-950/20 border-l border-slate-200 dark:border-slate-800 text-emerald-900 dark:text-emerald-300">
                               ₹{m.totalWeekSalary.toLocaleString()}
                             </td>
 
                             {/* Total Advance */}
-                            <td className="p-2 text-right font-mono font-bold text-xs bg-rose-50/30 dark:bg-rose-950/10 border-l border-slate-200 dark:border-slate-800 text-rose-600 dark:text-rose-400">
+                            <td className="p-2 text-right font-mono font-black text-sm bg-rose-50/50 dark:bg-rose-950/20 border-l border-slate-200 dark:border-slate-800 text-rose-800 dark:text-rose-300">
                               ₹{m.totalAdvance.toLocaleString()}
                             </td>
 
                             {/* Balance */}
-                            <td className="p-2 text-right font-mono font-bold text-xs bg-amber-50/30 dark:bg-amber-950/10 border-l border-slate-200 dark:border-slate-800 text-amber-700 dark:text-amber-300">
+                            <td className="p-2 text-right font-mono font-black text-sm bg-amber-50/50 dark:bg-amber-950/20 border-l border-slate-200 dark:border-slate-800 text-amber-950 dark:text-amber-200">
                               ₹{m.balance.toLocaleString()}
                             </td>
 
-                            {/* Remove Worker */}
+                            {/* Actions Column: Edit & Delete */}
                             <td className="p-1.5 text-center">
-                              <button
-                                onClick={() => handleRemoveWorker(actualTeamIdx, mIdx)}
-                                className="p-1 text-slate-300 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
-                                title="Remove Worker"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center justify-center space-x-1">
+                                <button
+                                  onClick={() => handleOpenEditWorker(actualTeamIdx, mIdx)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-500/10 transition-all"
+                                  title={`Edit ${m.employeeName}'s Salary & Details`}
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveWorker(actualTeamIdx, mIdx)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+                                  title="Remove Worker from sheet"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -971,8 +1021,8 @@ export default function WeeklyTeamRegister() {
 
                     {/* Team Sub-Totals Row */}
                     <tfoot>
-                      <tr className="bg-slate-100 dark:bg-slate-900 border-t-2 border-slate-300 dark:border-slate-700 font-bold text-slate-900 dark:text-slate-100">
-                        <td colSpan={2} className="p-2.5 text-left uppercase text-xs">
+                      <tr className="bg-slate-200/80 dark:bg-slate-900 border-t-2 border-slate-400 dark:border-slate-600 font-black text-slate-900 dark:text-slate-100">
+                        <td colSpan={2} className="p-2.5 text-left uppercase text-xs tracking-wider">
                           {team.teamName} SUB-TOTALS
                         </td>
                         <td className="p-2.5 text-center text-slate-400">-</td>
@@ -987,25 +1037,25 @@ export default function WeeklyTeamRegister() {
                           return (
                             <td
                               key={dr.date}
-                              className="p-2 text-center border-l border-slate-200 dark:border-slate-800"
+                              className="p-2 text-center border-l border-slate-300 dark:border-slate-700"
                             >
-                              <div className="text-[10px] font-mono text-slate-500">
+                              <div className="text-[11px] font-mono font-black text-slate-800 dark:text-slate-200">
                                 {dayTotalAdvance > 0 ? `₹${dayTotalAdvance}` : "—"}
                               </div>
                             </td>
                           );
                         })}
 
-                        <td className="p-2.5 text-center font-mono font-bold text-xs bg-indigo-100/50 dark:bg-indigo-950/30 border-l border-slate-200 dark:border-slate-800 text-indigo-800 dark:text-indigo-200">
+                        <td className="p-2.5 text-center font-mono font-black text-sm bg-indigo-200/60 dark:bg-indigo-950/50 border-l border-slate-300 dark:border-slate-700 text-indigo-950 dark:text-indigo-100">
                           {team.totalTeamDays}
                         </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-xs bg-emerald-100/50 dark:bg-emerald-950/30 border-l border-slate-200 dark:border-slate-800 text-emerald-800 dark:text-emerald-200">
+                        <td className="p-2.5 text-right font-mono font-black text-sm bg-emerald-200/60 dark:bg-emerald-950/50 border-l border-slate-300 dark:border-slate-700 text-emerald-950 dark:text-emerald-100">
                           ₹{team.totalTeamSalary.toLocaleString()}
                         </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-xs bg-rose-100/50 dark:bg-rose-950/30 border-l border-slate-200 dark:border-slate-800 text-rose-700 dark:text-rose-300">
+                        <td className="p-2.5 text-right font-mono font-black text-sm bg-rose-200/60 dark:bg-rose-950/50 border-l border-slate-300 dark:border-slate-700 text-rose-950 dark:text-rose-100">
                           ₹{team.totalTeamAdvance.toLocaleString()}
                         </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-xs bg-amber-100/50 dark:bg-amber-950/30 border-l border-slate-200 dark:border-slate-800 text-amber-800 dark:text-amber-200">
+                        <td className="p-2.5 text-right font-mono font-black text-sm bg-amber-200/60 dark:bg-amber-950/50 border-l border-slate-300 dark:border-slate-700 text-amber-950 dark:text-amber-100">
                           ₹{team.totalTeamBalance.toLocaleString()}
                         </td>
                         <td></td>
@@ -1100,43 +1150,41 @@ export default function WeeklyTeamRegister() {
                     </div>
                   </div>
 
-                  {/* Old Balance & Grand Total Box */}
-                  <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500 dark:text-slate-400">Team Net Wages Balance:</span>
-                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                       {/* Payout Calculation Box */}
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                    <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                      <span className="font-bold">Team Net Wages Balance:</span>
+                      <span className="font-mono font-black text-sm text-slate-900 dark:text-slate-100">
                         ₹{team.totalTeamBalance.toLocaleString()}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500 dark:text-slate-400">Extra Tasks / Expenses:</span>
-                      <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                    <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                      <span className="font-bold">Extra Tasks / Machine Cleaning:</span>
+                      <span className="font-mono font-black text-sm text-slate-900 dark:text-slate-100">
                         + ₹{(team.totalTeamExtraExpenses || 0).toLocaleString()}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500 dark:text-slate-400">Old Balance (OLD BAL):</span>
+                    <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                      <span className="font-bold">Old Balance Carryover:</span>
                       <div className="flex items-center space-x-1">
-                        <span className="text-slate-400">₹</span>
+                        <span className="font-bold">₹</span>
                         <input
                           type="number"
+                          value={team.oldBalance || ""}
+                          onChange={(e) => handleOldBalanceChange(actualTeamIdx, e.target.value)}
                           placeholder="0"
-                          value={team.oldBalance !== undefined ? team.oldBalance : ""}
-                          onChange={(e) =>
-                            handleOldBalanceChange(actualTeamIdx, e.target.value)
-                          }
-                          className="w-20 px-1.5 py-0.5 text-right font-mono font-bold text-xs bg-slate-50 dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+                          className="w-20 px-1.5 py-0.5 text-right font-mono font-black text-xs bg-slate-50 dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
                         />
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900 dark:text-amber-200 uppercase">
+                    <div className="border-t-2 border-slate-300 dark:border-slate-700 pt-2 flex justify-between items-center">
+                      <span className="font-black text-xs uppercase tracking-wider text-amber-800 dark:text-amber-300">
                         Grand Total Payable:
                       </span>
-                      <span className="text-sm font-mono font-bold text-amber-600 dark:text-amber-300">
+                      <span className="font-mono font-black text-base text-amber-700 dark:text-amber-300">
                         ₹{team.grandTotalPayable.toLocaleString()}
                       </span>
                     </div>
@@ -1146,6 +1194,294 @@ export default function WeeklyTeamRegister() {
             );
           })
         )}
+      </div>
+
+      {/* Edit Worker & Salary Rate Modal */}
+      {editingWorkerInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-panel w-full max-w-md p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl relative text-slate-900 dark:text-slate-100">
+            <button
+              onClick={() => setEditingWorkerInfo(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white transition p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold">
+                <Edit2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  Edit Labour Salary & Details
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Modify daily wage rate and worker info for this sheet
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveWorkerEdit} className="space-y-4">
+              {/* Worker Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Worker / Labour Name
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    required
+                    value={editWorkerName}
+                    onChange={(e) => setEditWorkerName(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold uppercase text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                  />
+                </div>
+              </div>
+
+              {/* Role */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Role / Position
+                </label>
+                <div className="relative">
+                  <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={editWorkerRole}
+                    onChange={(e) => setEditWorkerRole(e.target.value)}
+                    placeholder="e.g. Labor, Mason, Operator, Lead"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                  />
+                </div>
+              </div>
+
+              {/* Daily Salary / Wage Rate */}
+              <div className="p-3.5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <label className="block text-xs font-bold text-amber-800 dark:text-amber-200 mb-1">
+                  Labour Daily Salary / Wage Rate (₹/day)
+                </label>
+                <div className="relative">
+                  <IndianRupee className="w-4 h-4 text-amber-600 dark:text-amber-400 absolute left-3 top-2.5" />
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    required
+                    value={editWorkerSalary || ""}
+                    onChange={(e) => setEditWorkerSalary(Number(e.target.value))}
+                    placeholder="e.g. 1000"
+                    className="w-full bg-white dark:bg-slate-950 border border-amber-500/40 rounded-xl pl-9 pr-3 py-2 text-sm font-mono font-bold text-amber-700 dark:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Calculates total week salary & net balance automatically.
+                </p>
+              </div>
+
+              {/* Master Sync Checkbox */}
+              <label className="flex items-start space-x-2.5 cursor-pointer p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                <input
+                  type="checkbox"
+                  checked={syncToMaster}
+                  onChange={(e) => setSyncToMaster(e.target.checked)}
+                  className="mt-0.5 rounded text-amber-500 focus:ring-amber-400"
+                />
+                <div className="text-xs">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    Update Master Labour Profile
+                  </span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Save this daily salary to master database so upcoming weekly registers automatically use this new rate.
+                  </p>
+                </div>
+              </label>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingWorkerInfo(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingWorkerEdit || !editWorkerName.trim()}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20 transition flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{savingWorkerEdit ? "Updating..." : "Save Salary & Worker"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Dedicated Filled PDF Report Template (Captured by html2canvas for 100% Filled Columns) */}
+      <div style={{ position: "absolute", left: "-9999px", top: 0, width: "1200px" }}>
+        <div ref={pdfPrintRef} className="p-8 bg-white text-slate-900 font-sans space-y-6">
+          {/* Header */}
+          <div className="border-b-2 border-slate-900 pb-4 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold uppercase tracking-wider text-slate-900">
+                ELYON TRADERS
+              </h1>
+              <p className="text-[10px] font-serif font-bold tracking-[0.25em] text-amber-800 uppercase">
+                THE MOST HIGH
+              </p>
+              <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                5/1A, Kanagamoolamkudieruppu, Thazhakudy Post, K.K.Dist - 629 901. | GSTIN: 33AGVPG0116E2ZT
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="px-3 py-1 bg-slate-900 text-white font-bold text-xs rounded uppercase tracking-wider">
+                Weekly Attendance & Wage Register
+              </span>
+              <p className="text-xs font-mono font-bold text-slate-700 mt-1">
+                {register?.monthName} {register?.year} • {register?.startDate} to {register?.endDate}
+              </p>
+            </div>
+          </div>
+
+          {/* Teams Table */}
+          {register?.teams.map((team, tIdx) => (
+            <div key={tIdx} className="space-y-3 border border-slate-400 rounded-lg p-4 bg-slate-50/50">
+              <div className="flex items-center justify-between border-b border-slate-300 pb-2">
+                <span className="text-base font-bold uppercase tracking-wide text-slate-900">
+                  {team.teamName} ({team.members.length} Workers)
+                </span>
+                <span className="text-xs font-bold font-mono text-slate-700">
+                  Team Net Payable: ₹{team.grandTotalPayable.toLocaleString()}
+                </span>
+              </div>
+
+              <table className="w-full text-left text-xs border-collapse border border-slate-400">
+                <thead>
+                  <tr className="bg-slate-200 text-slate-900 font-bold border-b border-slate-400">
+                    <th className="p-2 border border-slate-300 w-8 text-center">#</th>
+                    <th className="p-2 border border-slate-300 min-w-[140px]">WORKER NAME</th>
+                    <th className="p-2 border border-slate-300 text-center w-24">RATE (₹/day)</th>
+                    {team.members[0]?.dailyRecords.map((dr, dIdx) => (
+                      <th key={dIdx} className="p-2 border border-slate-300 text-center min-w-[65px]">
+                        <div>{dr.dayName.substring(0, 3)}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{dr.date.split("-").slice(1).join("/")}</div>
+                      </th>
+                    ))}
+                    <th className="p-2 border border-slate-300 text-center w-12 bg-indigo-50">DAYS</th>
+                    <th className="p-2 border border-slate-300 text-right w-24 bg-emerald-50">TOTAL WAGES</th>
+                    <th className="p-2 border border-slate-300 text-right w-20 bg-rose-50">ADVANCE</th>
+                    <th className="p-2 border border-slate-300 text-right w-24 bg-amber-50">BALANCE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {team.members.map((m, mIdx) => (
+                    <tr key={mIdx} className="border-b border-slate-300">
+                      <td className="p-2 border border-slate-300 text-center font-mono text-slate-600">
+                        {String(mIdx + 1).padStart(2, "0")}
+                      </td>
+                      <td className="p-2 border border-slate-300">
+                        <div className="font-bold text-slate-900">{m.employeeName}</div>
+                        <div className="text-[10px] text-slate-500">{m.employeeId} • {m.role || "Labor"}</div>
+                      </td>
+                      <td className="p-2 border border-slate-300 text-center font-mono font-bold text-slate-900">
+                        ₹{m.dailySalary || 0}
+                      </td>
+                      {m.dailyRecords.map((dr, dIdx) => (
+                        <td key={dIdx} className="p-1.5 border border-slate-300 text-center align-top">
+                          <span
+                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              dr.status === "P" || dr.status === "1"
+                                ? "bg-emerald-600 text-white"
+                                : dr.status === "0.75" || dr.status === ".75"
+                                ? "bg-teal-600 text-white"
+                                : dr.status === "0.5" || dr.status === ".5"
+                                ? "bg-amber-500 text-white"
+                                : dr.status === "0.25" || dr.status === ".25"
+                                ? "bg-purple-600 text-white"
+                                : dr.status === "A"
+                                ? "bg-rose-600 text-white"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {dr.status || "-"}
+                          </span>
+                          {dr.advance > 0 && (
+                            <div className="text-[9px] font-mono font-bold text-rose-700 mt-0.5">
+                              ₹{dr.advance}
+                            </div>
+                          )}
+                        </td>
+                      ))}
+                      <td className="p-2 border border-slate-300 text-center font-mono font-bold bg-indigo-50/50 text-indigo-900">
+                        {m.totalWorkingDays}
+                      </td>
+                      <td className="p-2 border border-slate-300 text-right font-mono font-bold bg-emerald-50/50 text-emerald-900">
+                        ₹{m.totalWeekSalary.toLocaleString()}
+                      </td>
+                      <td className="p-2 border border-slate-300 text-right font-mono font-bold bg-rose-50/50 text-rose-900">
+                        ₹{m.totalAdvance.toLocaleString()}
+                      </td>
+                      <td className="p-2 border border-slate-300 text-right font-mono font-bold bg-amber-50/50 text-amber-900">
+                        ₹{m.balance.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-200 font-bold text-slate-900 border-t-2 border-slate-400">
+                    <td colSpan={2} className="p-2 border border-slate-300 uppercase">
+                      {team.teamName} SUB-TOTALS
+                    </td>
+                    <td className="p-2 border border-slate-300 text-center">-</td>
+                    {team.members[0]?.dailyRecords.map((dr, dIdx) => {
+                      const dayAdv = team.members.reduce((sum, mem) => {
+                        const rec = mem.dailyRecords.find((r) => r.date === dr.date);
+                        return sum + (rec?.advance || 0);
+                      }, 0);
+                      return (
+                        <td key={dIdx} className="p-2 border border-slate-300 text-center font-mono text-[10px]">
+                          {dayAdv > 0 ? `₹${dayAdv}` : "—"}
+                        </td>
+                      );
+                    })}
+                    <td className="p-2 border border-slate-300 text-center font-mono">{team.totalTeamDays}</td>
+                    <td className="p-2 border border-slate-300 text-right font-mono">₹{team.totalTeamSalary.toLocaleString()}</td>
+                    <td className="p-2 border border-slate-300 text-right font-mono">₹{team.totalTeamAdvance.toLocaleString()}</td>
+                    <td className="p-2 border border-slate-300 text-right font-mono text-amber-900">₹{team.totalTeamBalance.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {/* Extra Expenses & Payout Summary */}
+              <div className="grid grid-cols-2 gap-4 p-3 bg-white border border-slate-300 rounded-lg text-xs">
+                <div>
+                  <span className="font-bold text-slate-800 block mb-1">Extra Tasks / Machine Cleaning:</span>
+                  {(!team.extraExpenses || team.extraExpenses.length === 0) ? (
+                    <span className="text-slate-500 italic text-[11px]">None recorded</span>
+                  ) : (
+                    team.extraExpenses.map((ex, i) => (
+                      <div key={i} className="flex justify-between text-slate-700">
+                        <span>• {ex.description}:</span>
+                        <span className="font-mono font-bold">₹{ex.amount.toLocaleString()}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="space-y-1 font-mono text-right">
+                  <div>Team Net Wages: <span className="font-bold">₹{team.totalTeamBalance.toLocaleString()}</span></div>
+                  <div>Extra Tasks: <span className="font-bold">+ ₹{(team.totalTeamExtraExpenses || 0).toLocaleString()}</span></div>
+                  <div>Old Balance: <span className="font-bold">₹{(team.oldBalance || 0).toLocaleString()}</span></div>
+                  <div className="border-t border-slate-400 pt-1 font-bold text-sm text-slate-900">
+                    Grand Total Payable: ₹{team.grandTotalPayable.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

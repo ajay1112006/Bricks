@@ -202,21 +202,28 @@ void main() {
 
       const updateSize = () => {
         if (!containerRef.current || !renderer) return;
-        renderer.dpr = Math.min(window.devicePixelRatio, 2);
+        renderer.dpr = 1; // Fixed 1x DPR to avoid high-DPI GPU overhead
         const { clientWidth: w, clientHeight: h } = containerRef.current;
         renderer.setSize(w, h);
-        uniforms.iResolution.value = [w * renderer.dpr, h * renderer.dpr];
+        uniforms.iResolution.value = [w, h];
       };
+
+      let lastFrame = 0;
+      const targetInterval = 1000 / 30; // 30 FPS throttle for smooth low-power animation
 
       const loop = (t: number) => {
         if (!rendererRef.current || !uniformsRef.current || !meshRef.current) return;
-        uniforms.iTime.value = t * 0.001;
-        try {
-          renderer.render({ scene: mesh });
-          animationIdRef.current = requestAnimationFrame(loop);
-        } catch (e) {
-          return;
+        
+        if (t - lastFrame >= targetInterval) {
+          lastFrame = t;
+          uniforms.iTime.value = t * 0.001;
+          try {
+            renderer.render({ scene: mesh });
+          } catch (e) {
+            return;
+          }
         }
+        animationIdRef.current = requestAnimationFrame(loop);
       };
 
       window.addEventListener('resize', updateSize);

@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   description: "Elyon Traders official enterprise portal for employee session attendance logging and order profit calibration.",
   icons: {
     icon: "/favicon.png",
-    shortcut: "/icon.png",
+    shortcut: "/favicon.png",
     apple: "/favicon.png",
   },
 };

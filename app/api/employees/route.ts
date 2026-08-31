@@ -72,6 +72,63 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { employeeId, id, name, role, department, dailySalary, advanceAmount, status } = body;
+    const targetId = employeeId || id;
+
+    if (!targetId) {
+      return NextResponse.json(
+        { success: false, error: "Employee ID is required for update" },
+        { status: 400 }
+      );
+    }
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (role !== undefined) updateData.role = role.trim();
+    if (department !== undefined) updateData.department = department.trim();
+    if (dailySalary !== undefined) updateData.dailySalary = Math.max(0, Number(dailySalary) || 0);
+    if (advanceAmount !== undefined) updateData.advanceAmount = Math.max(0, Number(advanceAmount) || 0);
+    if (status !== undefined) updateData.status = status;
+
+    const { isMock } = await connectToDatabase();
+    if (isMock) {
+      const updated = memoryStore.updateEmployee(targetId, updateData);
+      if (!updated) {
+        return NextResponse.json({ success: false, error: "Employee not found in store" }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: updated, isMock: true });
+    }
+
+    const isMongoId = mongoose.Types.ObjectId.isValid(targetId) && String(new mongoose.Types.ObjectId(targetId)) === targetId;
+    const query = isMongoId
+      ? { $or: [{ employeeId: targetId }, { _id: targetId }] }
+      : { employeeId: targetId };
+
+    const updated = await EmployeeModel.findOneAndUpdate(
+      query,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, error: "Employee not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, data: updated, isMock: false });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to update employee" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -112,3 +169,4 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+
