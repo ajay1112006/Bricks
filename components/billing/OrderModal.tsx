@@ -17,7 +17,7 @@ export default function OrderModal({ isOpen, onClose, onOrderSaved }: OrderModal
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [status, setStatus] = useState<"Draft" | "In Progress" | "Delivered" | "Cancelled">("In Progress");
   const [items, setItems] = useState<
-    { name: string; quantity: number; unitPrice: number; costPrice: number }[]
+    { name: string; quantity: number | string; unitPrice: number | string; costPrice: number }[]
   >([{ name: "Standard Bricks Batch (10k)", quantity: 5, unitPrice: 24000, costPrice: 16000 }]);
 
   const [costs, setCosts] = useState({
@@ -60,7 +60,11 @@ export default function OrderModal({ isOpen, onClose, onOrderSaved }: OrderModal
   };
 
   const calculateTotalRevenue = () => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    return items.reduce((sum, item) => {
+      const q = typeof item.quantity === "number" ? item.quantity : parseFloat(item.quantity as string) || 0;
+      const p = typeof item.unitPrice === "number" ? item.unitPrice : parseFloat(item.unitPrice as string) || 0;
+      return sum + (q * p);
+    }, 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,13 +73,20 @@ export default function OrderModal({ isOpen, onClose, onOrderSaved }: OrderModal
     setError("");
 
     try {
+      const processedItems = items.map((item) => ({
+        ...item,
+        quantity: typeof item.quantity === "number" ? item.quantity : parseFloat(item.quantity as string) || 0,
+        unitPrice: typeof item.unitPrice === "number" ? item.unitPrice : parseFloat(item.unitPrice as string) || 0,
+        costPrice: Number(item.costPrice) || 0,
+      }));
+
       const payload = {
         orderId,
         customerName,
         customerPhone,
         customerEmail: customerPhone,
         status,
-        items,
+        items: processedItems,
         costs,
         marginAdjustment: 0,
         notes,
@@ -209,18 +220,20 @@ export default function OrderModal({ isOpen, onClose, onOrderSaved }: OrderModal
                 />
                 <input
                   type="number"
-                  min="1"
+                  step="any"
+                  min="0"
                   placeholder="Qty"
                   value={item.quantity}
-                  onChange={(e) => handleItemChange(index, "quantity", parseInt(e.target.value) || 1)}
+                  onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
                   className="col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-900 dark:text-slate-100"
                 />
                 <input
                   type="number"
+                  step="any"
                   min="0"
                   placeholder="Unit Price ₹"
                   value={item.unitPrice}
-                  onChange={(e) => handleItemChange(index, "unitPrice", parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleItemChange(index, "unitPrice", e.target.value)}
                   className="col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-900 dark:text-slate-100"
                 />
                 {items.length > 1 && (

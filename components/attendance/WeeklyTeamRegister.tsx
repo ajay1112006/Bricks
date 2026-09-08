@@ -48,6 +48,10 @@ interface WorkerRow {
   totalWeekSalary: number;
   totalAdvance: number;
   balance: number;
+  overrideDays?: number;
+  overrideTotalWages?: number;
+  overrideAdvance?: number;
+  overrideBalance?: number;
 }
 
 interface TeamExtraExpense {
@@ -120,14 +124,23 @@ export default function WeeklyTeamRegister() {
     worker: WorkerRow;
   } | null>(null);
   const [editWorkerName, setEditWorkerName] = useState<string>("");
-  const [editWorkerRole, setEditWorkerRole] = useState<string>("");
+  const [editWorkerRole, setEditWorkerRole] = useState<string>("Labor");
   const [editWorkerSalary, setEditWorkerSalary] = useState<number>(0);
+  const [editDailyRecords, setEditDailyRecords] = useState<DailyRecord[]>([]);
+
+  // Manual Override States in Edit Modal
+  const [editDaysInput, setEditDaysInput] = useState<string>("");
+  const [editWagesInput, setEditWagesInput] = useState<string>("");
+  const [editAdvanceInput, setEditAdvanceInput] = useState<string>("");
+  const [editBalanceInput, setEditBalanceInput] = useState<string>("");
+
   const [syncToMaster, setSyncToMaster] = useState<boolean>(true);
   const [savingWorkerEdit, setSavingWorkerEdit] = useState<boolean>(false);
   const [isEmployeeManagerOpen, setIsEmployeeManagerOpen] = useState<boolean>(false);
 
   const printReportRef = useRef<HTMLDivElement>(null);
   const pdfPrintRef = useRef<HTMLDivElement>(null);
+  const teamPdfPrintRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Fetch or initialize register for selected Monday
   const fetchWeeklyRegister = useCallback(async (mondayStr: string) => {
@@ -183,31 +196,36 @@ export default function WeeklyTeamRegister() {
       let teamBalance = 0;
 
       const updatedMembers = team.members.map((m) => {
-        let wDays = 0;
-        let wAdvance = 0;
+        let calcDays = 0;
+        let calcAdvance = 0;
 
         m.dailyRecords.forEach((dr) => {
-          if (dr.status === "P" || dr.status === "1") wDays += 1;
-          else if (dr.status === "0.75" || dr.status === ".75" || dr.status === "3/4") wDays += 0.75;
-          else if (dr.status === "0.5" || dr.status === ".5" || dr.status === "1/2") wDays += 0.5;
-          else if (dr.status === "0.25" || dr.status === ".25" || dr.status === "1/4") wDays += 0.25;
-          wAdvance += Number(dr.advance) || 0;
+          if (dr.status === "P" || dr.status === "1") calcDays += 1;
+          else if (dr.status === "0.75" || dr.status === ".75" || dr.status === "3/4") calcDays += 0.75;
+          else if (dr.status === "0.5" || dr.status === ".5" || dr.status === "1/2") calcDays += 0.5;
+          else if (dr.status === "0.25" || dr.status === ".25" || dr.status === "1/4") calcDays += 0.25;
+          calcAdvance += Number(dr.advance) || 0;
         });
 
-        const wSalary = wDays * (Number(m.dailySalary) || 0);
-        const wBal = wSalary - wAdvance;
+        const calcSalary = calcDays * (Number(m.dailySalary) || 0);
 
-        teamDays += wDays;
-        teamSalary += wSalary;
-        teamAdvance += wAdvance;
-        teamBalance += wBal;
+        // Final values take override if specified, otherwise computed
+        const finalDays = m.overrideDays !== undefined && m.overrideDays !== null ? m.overrideDays : calcDays;
+        const finalSalary = m.overrideTotalWages !== undefined && m.overrideTotalWages !== null ? m.overrideTotalWages : calcSalary;
+        const finalAdvance = m.overrideAdvance !== undefined && m.overrideAdvance !== null ? m.overrideAdvance : calcAdvance;
+        const finalBalance = m.overrideBalance !== undefined && m.overrideBalance !== null ? m.overrideBalance : (finalSalary - finalAdvance);
+
+        teamDays += finalDays;
+        teamSalary += finalSalary;
+        teamAdvance += finalAdvance;
+        teamBalance += finalBalance;
 
         return {
           ...m,
-          totalWorkingDays: wDays,
-          totalWeekSalary: wSalary,
-          totalAdvance: wAdvance,
-          balance: wBal,
+          totalWorkingDays: finalDays,
+          totalWeekSalary: finalSalary,
+          totalAdvance: finalAdvance,
+          balance: finalBalance,
         };
       });
 
@@ -369,6 +387,13 @@ export default function WeeklyTeamRegister() {
     setEditWorkerName(worker.employeeName);
     setEditWorkerRole(worker.role || "Labor");
     setEditWorkerSalary(worker.dailySalary || 0);
+    setEditDailyRecords(JSON.parse(JSON.stringify(worker.dailyRecords || [])));
+
+    setEditDaysInput(worker.overrideDays !== undefined && worker.overrideDays !== null ? String(worker.overrideDays) : "");
+    setEditWagesInput(worker.overrideTotalWages !== undefined && worker.overrideTotalWages !== null ? String(worker.overrideTotalWages) : "");
+    setEditAdvanceInput(worker.overrideAdvance !== undefined && worker.overrideAdvance !== null ? String(worker.overrideAdvance) : "");
+    setEditBalanceInput(worker.overrideBalance !== undefined && worker.overrideBalance !== null ? String(worker.overrideBalance) : "");
+
     setSyncToMaster(true);
   };
 
@@ -384,6 +409,12 @@ export default function WeeklyTeamRegister() {
     targetMember.employeeName = editWorkerName.trim().toUpperCase();
     targetMember.role = editWorkerRole.trim() || "Labor";
     targetMember.dailySalary = Math.max(0, Number(editWorkerSalary) || 0);
+    targetMember.dailyRecords = editDailyRecords;
+
+    targetMember.overrideDays = editDaysInput.trim() !== "" ? Number(editDaysInput) : undefined;
+    targetMember.overrideTotalWages = editWagesInput.trim() !== "" ? Number(editWagesInput) : undefined;
+    targetMember.overrideAdvance = editAdvanceInput.trim() !== "" ? Number(editAdvanceInput) : undefined;
+    targetMember.overrideBalance = editBalanceInput.trim() !== "" ? Number(editBalanceInput) : undefined;
 
     const recalculated = recalculateRegister(newReg);
     setRegister(recalculated);
@@ -408,7 +439,7 @@ export default function WeeklyTeamRegister() {
 
     setSavingWorkerEdit(false);
     setEditingWorkerInfo(null);
-    setSaveSuccessMsg(`Updated salary & details for ${targetMember.employeeName}!`);
+    setSaveSuccessMsg(`Updated full sheet details for ${targetMember.employeeName}!`);
     setTimeout(() => setSaveSuccessMsg(""), 3500);
   };
 
@@ -432,6 +463,40 @@ export default function WeeklyTeamRegister() {
     setNewTeamName("");
     setIsAddingTeam(false);
     setSelectedTeamTab(newTeamName.trim().toUpperCase());
+  };
+
+  // Edit / Rename Team Name
+  const handleEditTeamName = (teamIdx: number) => {
+    if (!register) return;
+    const currentName = register.teams[teamIdx].teamName;
+    const updatedName = prompt("Enter new team name:", currentName);
+    if (!updatedName || !updatedName.trim() || updatedName.trim().toUpperCase() === currentName) return;
+
+    const newReg = JSON.parse(JSON.stringify(register)) as WeeklyRegisterData;
+    const oldName = newReg.teams[teamIdx].teamName;
+    const formattedName = updatedName.trim().toUpperCase();
+    newReg.teams[teamIdx].teamName = formattedName;
+    setRegister(recalculateRegister(newReg));
+
+    if (selectedTeamTab === oldName) {
+      setSelectedTeamTab(formattedName);
+    }
+  };
+
+  // Remove Team completely from register
+  const handleRemoveTeam = (teamIdx: number) => {
+    if (!register) return;
+    const team = register.teams[teamIdx];
+    if (!confirm(`Are you sure you want to delete the team "${team.teamName}" and all its worker rows?`)) return;
+
+    const newReg = JSON.parse(JSON.stringify(register)) as WeeklyRegisterData;
+    const deletedTeamName = newReg.teams[teamIdx].teamName;
+    newReg.teams.splice(teamIdx, 1);
+    setRegister(recalculateRegister(newReg));
+
+    if (selectedTeamTab === deletedTeamName) {
+      setSelectedTeamTab("all");
+    }
   };
 
   // Save changes to backend
@@ -578,16 +643,6 @@ export default function WeeklyTeamRegister() {
           >
             <Download className="w-4 h-4" />
             <span>PDF Print</span>
-          </button>
-
-          {/* Manage Master Staff & Salaries */}
-          <button
-            onClick={() => setIsEmployeeManagerOpen(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500 hover:text-white transition-all"
-            title="Manage Labours & Default Wage Rates"
-          >
-            <Users className="w-4 h-4" />
-            <span>Labour Salaries</span>
           </button>
 
           {/* Save to DB */}
@@ -808,6 +863,47 @@ export default function WeeklyTeamRegister() {
 
                   {/* Team Actions */}
                   <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const targetRef = teamPdfPrintRefs.current[team.teamName];
+                        if (targetRef && register) {
+                          downloadElementAsPDF(
+                            targetRef,
+                            `Elyon_Traders_${team.teamName.replace(/\s+/g, "_")}_Register_${register.startDate}.pdf`
+                          );
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white border border-blue-500/30 transition-all flex items-center space-x-1"
+                      title={`Download PDF Report for ${team.teamName} only`}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>PDF Report</span>
+                    </button>
+                    <button
+                      onClick={() => setAddingWorkerTeamIdx(actualTeamIdx)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-amber-500 text-white hover:bg-amber-600 shadow-md shadow-amber-500/20 transition-all flex items-center space-x-1"
+                      title="Add a new Labour / Worker to this Team"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Add Labour</span>
+                    </button>
+                    <button
+                      onClick={() => handleEditTeamName(actualTeamIdx)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-white border border-amber-500/30 transition-all flex items-center space-x-1"
+                      title="Edit / Rename Team Name"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit Team</span>
+                    </button>
+                    <button
+                      onClick={() => handleRemoveTeam(actualTeamIdx)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500 hover:text-white border border-rose-500/30 transition-all flex items-center space-x-1"
+                      title="Remove entire team"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove Team</span>
+                    </button>
+                    <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1 hidden sm:block"></div>
                     <button
                       onClick={() => handleBulkSetStatus(actualTeamIdx, "P")}
                       className="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all"
@@ -1196,12 +1292,12 @@ export default function WeeklyTeamRegister() {
         )}
       </div>
 
-      {/* Edit Worker & Salary Rate Modal */}
-      {editingWorkerInfo && (
+      {/* Add Labour Modal */}
+      {addingWorkerTeamIdx !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
           <div className="glass-panel w-full max-w-md p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl relative text-slate-900 dark:text-slate-100">
             <button
-              onClick={() => setEditingWorkerInfo(null)}
+              onClick={() => setAddingWorkerTeamIdx(null)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white transition p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <X className="w-5 h-5" />
@@ -1209,37 +1305,43 @@ export default function WeeklyTeamRegister() {
 
             <div className="flex items-center space-x-3 mb-5">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold">
-                <Edit2 className="w-5 h-5" />
+                <UserPlus className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                  Edit Labour Salary & Details
+                  Add New Labour / Worker
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Modify daily wage rate and worker info for this sheet
+                  Enrolling worker to <span className="font-bold text-amber-600 dark:text-amber-400">{register?.teams[addingWorkerTeamIdx]?.teamName}</span>
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleSaveWorkerEdit} className="space-y-4">
-              {/* Worker Name */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAddWorkerToTeam(addingWorkerTeamIdx);
+              }}
+              className="space-y-4"
+            >
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Worker / Labour Name
+                  Worker / Labour Name *
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   <input
                     type="text"
                     required
-                    value={editWorkerName}
-                    onChange={(e) => setEditWorkerName(e.target.value)}
+                    placeholder="e.g. PERUMAL"
+                    value={newWorkerName}
+                    onChange={(e) => setNewWorkerName(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold uppercase text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                    autoFocus
                   />
                 </div>
               </div>
 
-              {/* Role */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Role / Position
@@ -1248,15 +1350,14 @@ export default function WeeklyTeamRegister() {
                   <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   <input
                     type="text"
-                    value={editWorkerRole}
-                    onChange={(e) => setEditWorkerRole(e.target.value)}
-                    placeholder="e.g. Labor, Mason, Operator, Lead"
+                    value={newWorkerRole}
+                    onChange={(e) => setNewWorkerRole(e.target.value)}
+                    placeholder="e.g. Labor, Mason, Helper"
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
                   />
                 </div>
               </div>
 
-              {/* Daily Salary / Wage Rate */}
               <div className="p-3.5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-xl">
                 <label className="block text-xs font-bold text-amber-800 dark:text-amber-200 mb-1">
                   Labour Daily Salary / Wage Rate (₹/day)
@@ -1268,57 +1369,316 @@ export default function WeeklyTeamRegister() {
                     min="0"
                     step="any"
                     required
-                    value={editWorkerSalary || ""}
-                    onChange={(e) => setEditWorkerSalary(Number(e.target.value))}
-                    placeholder="e.g. 1000"
+                    value={newWorkerSalary || ""}
+                    onChange={(e) => setNewWorkerSalary(Number(e.target.value))}
+                    placeholder="800"
                     className="w-full bg-white dark:bg-slate-950 border border-amber-500/40 rounded-xl pl-9 pr-3 py-2 text-sm font-mono font-bold text-amber-700 dark:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Calculates total week salary & net balance automatically.
-                </p>
               </div>
 
-              {/* Master Sync Checkbox */}
-              <label className="flex items-start space-x-2.5 cursor-pointer p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                <input
-                  type="checkbox"
-                  checked={syncToMaster}
-                  onChange={(e) => setSyncToMaster(e.target.checked)}
-                  className="mt-0.5 rounded text-amber-500 focus:ring-amber-400"
-                />
-                <div className="text-xs">
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
-                    Update Master Labour Profile
-                  </span>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Save this daily salary to master database so upcoming weekly registers automatically use this new rate.
-                  </p>
-                </div>
-              </label>
-
-              {/* Action Buttons */}
               <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setEditingWorkerInfo(null)}
+                  onClick={() => setAddingWorkerTeamIdx(null)}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={savingWorkerEdit || !editWorkerName.trim()}
+                  disabled={!newWorkerName.trim()}
                   className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20 transition flex items-center space-x-1.5 disabled:opacity-50"
                 >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>{savingWorkerEdit ? "Updating..." : "Save Salary & Worker"}</span>
+                  <Plus className="w-4 h-4" />
+                  <span>Add Labour</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Edit Worker & Full Sheet Details Modal */}
+      {editingWorkerInfo && (() => {
+        // Calculate live preview metrics for the modal
+        let previewDays = 0;
+        let previewAdvance = 0;
+
+        editDailyRecords.forEach((dr) => {
+          if (dr.status === "P" || dr.status === "1") previewDays += 1;
+          else if (dr.status === "0.75" || dr.status === ".75" || dr.status === "3/4") previewDays += 0.75;
+          else if (dr.status === "0.5" || dr.status === ".5" || dr.status === "1/2") previewDays += 0.5;
+          else if (dr.status === "0.25" || dr.status === ".25" || dr.status === "1/4") previewDays += 0.25;
+          previewAdvance += Number(dr.advance) || 0;
+        });
+
+        const previewWages = previewDays * (Number(editWorkerSalary) || 0);
+        const previewBalance = previewWages - previewAdvance;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+            <div className="glass-panel w-full max-w-2xl p-6 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl relative text-slate-900 dark:text-slate-100 my-8">
+              <button
+                onClick={() => setEditingWorkerInfo(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white transition p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center space-x-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold">
+                  <Edit2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                    Edit Labour Sheet Details & Wage Sheet
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Edit Name, Role, Rate, Days, Daily Advances, Total Wages & Balance
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveWorkerEdit} className="space-y-5">
+                {/* Worker Identity Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Worker / Labour Name *
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        required
+                        value={editWorkerName}
+                        onChange={(e) => setEditWorkerName(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold uppercase text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Role / Position
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={editWorkerRole}
+                        onChange={(e) => setEditWorkerRole(e.target.value)}
+                        placeholder="e.g. Labor, Mason, Operator, Lead"
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 transition"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Daily Wage Rate */}
+                <div className="p-3.5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <label className="block text-xs font-bold text-amber-800 dark:text-amber-200 mb-1">
+                    Labour Daily Salary / Wage Rate (₹/day)
+                  </label>
+                  <div className="relative">
+                    <IndianRupee className="w-4 h-4 text-amber-600 dark:text-amber-400 absolute left-3 top-2.5" />
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      required
+                      value={editWorkerSalary || ""}
+                      onChange={(e) => setEditWorkerSalary(Number(e.target.value))}
+                      placeholder="e.g. 1000"
+                      className="w-full bg-white dark:bg-slate-950 border border-amber-500/40 rounded-xl pl-9 pr-3 py-2 text-sm font-mono font-bold text-amber-700 dark:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
+                    />
+                  </div>
+                </div>
+
+                {/* Daily Attendance & Advances Breakdown (Editable Days & Advances) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-2">
+                    Daily Attendance (Days) & Cash Advances (₹)
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                    {editDailyRecords.map((dr, dIdx) => (
+                      <div
+                        key={dr.date}
+                        className="p-2.5 bg-slate-100/80 dark:bg-slate-950/80 rounded-xl border border-slate-200 dark:border-slate-800 text-center space-y-1.5"
+                      >
+                        <div className="font-bold text-[11px] text-slate-800 dark:text-slate-200">
+                          {dr.dayName.substring(0, 3)}
+                        </div>
+                        <div className="text-[9px] text-slate-400 font-mono">
+                          {dr.date.split("-").slice(1).join("/")}
+                        </div>
+
+                        {/* Status selector select input */}
+                        <select
+                          value={dr.status}
+                          onChange={(e) => {
+                            const newRecs = [...editDailyRecords];
+                            newRecs[dIdx].status = e.target.value;
+                            setEditDailyRecords(newRecs);
+                          }}
+                          className={`w-full py-1 text-center font-bold text-xs rounded border cursor-pointer focus:outline-none ${
+                            dr.status === "P" || dr.status === "1"
+                              ? "bg-emerald-600 text-white border-emerald-600"
+                              : dr.status === "0.75" || dr.status === ".75"
+                              ? "bg-teal-600 text-white border-teal-600"
+                              : dr.status === "0.5" || dr.status === ".5"
+                              ? "bg-amber-500 text-white border-amber-500"
+                              : dr.status === "0.25" || dr.status === ".25"
+                              ? "bg-purple-600 text-white border-purple-600"
+                              : dr.status === "A"
+                              ? "bg-rose-600 text-white border-rose-600"
+                              : "bg-white dark:bg-slate-900 text-slate-500 border-slate-300 dark:border-slate-700"
+                          }`}
+                        >
+                          <option value="P">P (1.0)</option>
+                          <option value="0.75">0.75</option>
+                          <option value="0.5">0.5</option>
+                          <option value="0.25">0.25</option>
+                          <option value="A">A (0.0)</option>
+                          <option value="">-</option>
+                        </select>
+
+                        {/* Advance input */}
+                        <div className="flex items-center justify-center">
+                          <span className="text-[10px] text-slate-400 mr-0.5">₹</span>
+                          <input
+                            type="number"
+                            placeholder="Adv"
+                            value={dr.advance > 0 ? dr.advance : ""}
+                            onChange={(e) => {
+                              const newRecs = [...editDailyRecords];
+                              newRecs[dIdx].advance = Math.max(0, Number(e.target.value));
+                              setEditDailyRecords(newRecs);
+                            }}
+                            className="w-full px-1 py-0.5 text-center font-mono text-[10px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:border-amber-500 outline-none text-rose-600 dark:text-rose-400"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Direct Editable Override Section for DAYS, TOTAL WAGES, ADVANCE, BALANCE */}
+                <div className="p-4 bg-slate-100/90 dark:bg-slate-950/90 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                      Direct Custom Override Controls (DAYS, WAGES, ADVANCE, BALANCE)
+                    </span>
+                    <span className="text-[10px] text-slate-500 italic">
+                      Leave empty for auto-calculated totals
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {/* DAYS */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-indigo-700 dark:text-indigo-300 mb-1">
+                        DAYS WORKED
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder={`Auto: ${previewDays}`}
+                        value={editDaysInput}
+                        onChange={(e) => setEditDaysInput(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-800 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-indigo-900 dark:text-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {/* TOTAL WAGES */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mb-1">
+                        TOTAL WAGES (₹)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder={`Auto: ₹${previewWages}`}
+                        value={editWagesInput}
+                        onChange={(e) => setEditWagesInput(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-800 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-emerald-900 dark:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    {/* ADVANCE */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-rose-700 dark:text-rose-300 mb-1">
+                        TOTAL ADVANCE (₹)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder={`Auto: ₹${previewAdvance}`}
+                        value={editAdvanceInput}
+                        onChange={(e) => setEditAdvanceInput(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-rose-900 dark:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                      />
+                    </div>
+
+                    {/* BALANCE */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-amber-700 dark:text-amber-300 mb-1">
+                        NET BALANCE (₹)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder={`Auto: ₹${previewBalance}`}
+                        value={editBalanceInput}
+                        onChange={(e) => setEditBalanceInput(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-900 border border-amber-400 dark:border-amber-700 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-amber-900 dark:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Master Sync Checkbox */}
+                <label className="flex items-start space-x-2.5 cursor-pointer p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                  <input
+                    type="checkbox"
+                    checked={syncToMaster}
+                    onChange={(e) => setSyncToMaster(e.target.checked)}
+                    className="mt-0.5 rounded text-amber-500 focus:ring-amber-400"
+                  />
+                  <div className="text-xs">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      Update Master Labour Profile
+                    </span>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Save this daily salary rate to master database for future weekly sheets.
+                    </p>
+                  </div>
+                </label>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setEditingWorkerInfo(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingWorkerEdit || !editWorkerName.trim()}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20 transition flex items-center space-x-1.5 disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{savingWorkerEdit ? "Updating..." : "Save Full Labour Details"}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Hidden Dedicated Filled PDF Report Template (Captured by html2canvas for 100% Filled Columns) */}
       <div style={{ position: "absolute", left: "-9999px", top: 0, width: "1200px" }}>
@@ -1348,7 +1708,36 @@ export default function WeeklyTeamRegister() {
 
           {/* Teams Table */}
           {register?.teams.map((team, tIdx) => (
-            <div key={tIdx} className="space-y-3 border border-slate-400 rounded-lg p-4 bg-slate-50/50">
+            <div
+              key={tIdx}
+              ref={(el) => {
+                if (el) teamPdfPrintRefs.current[team.teamName] = el;
+              }}
+              className="space-y-3 border border-slate-400 rounded-lg p-6 bg-white shadow-none text-slate-900"
+            >
+              {/* Per-Team Header */}
+              <div className="border-b-2 border-slate-900 pb-3 flex items-center justify-between">
+                <div>
+                  <h1 className="text-xl font-bold uppercase tracking-wider text-slate-900">
+                    ELYON TRADERS
+                  </h1>
+                  <p className="text-[9px] font-serif font-bold tracking-[0.2em] text-amber-800 uppercase">
+                    THE MOST HIGH
+                  </p>
+                  <p className="text-[11px] text-slate-600 font-semibold mt-0.5">
+                    5/1A, Kanagamoolamkudieruppu, Thazhakudy Post, K.K.Dist - 629 901. | GSTIN: 33AGVPG0116E2ZT
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="px-2.5 py-1 bg-slate-900 text-white font-bold text-xs rounded uppercase tracking-wider">
+                    {team.teamName} - Weekly Wage Sheet
+                  </span>
+                  <p className="text-xs font-mono font-bold text-slate-700 mt-1">
+                    {register?.monthName} {register?.year} • {register?.startDate} to {register?.endDate}
+                  </p>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between border-b border-slate-300 pb-2">
                 <span className="text-base font-bold uppercase tracking-wide text-slate-900">
                   {team.teamName} ({team.members.length} Workers)

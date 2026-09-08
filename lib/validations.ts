@@ -29,7 +29,7 @@ export const BatchAttendanceSchemaValidation = z.object({
 // Order validation
 export const OrderItemSchemaValidation = z.object({
   name: z.string().min(1, "Item name required"),
-  quantity: z.number().int().positive("Quantity must be greater than 0"),
+  quantity: z.number().positive("Quantity must be greater than 0"),
   unitPrice: z.number().nonnegative("Unit price cannot be negative"),
   costPrice: z.number().nonnegative("Cost price cannot be negative"),
 });
