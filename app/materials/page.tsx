@@ -78,31 +78,31 @@ export default function MaterialsPage() {
   // Material Form state
   const todayStr = new Date().toLocaleDateString("sv");
   const [matForm, setMatForm] = useState({
-    name: "Industrial Machinery Oil",
+    name: "",
     category: "Oil",
     date: todayStr,
-    totalCost: 15000,
-    amountPaid: 5000,
-    supplier: "Castrol Suppliers Ltd",
+    totalCost: 0,
+    amountPaid: 0,
+    supplier: "",
     notes: "",
   });
 
   // Truck Form state
   const [truckForm, setTruckForm] = useState({
-    vehicleNumber: "TN-38-AX-2094",
-    driverName: "Ramesh Kumar",
+    vehicleNumber: "",
+    driverName: "",
     date: todayStr,
-    quantity: 2.6,
-    rate: 3000,
-    manualTotal: 7800,
-    amountPaid: 5000,
-    tripDetails: "2.6 trips of clay transport",
-    notes: "Calculated: 2.6 x 3000",
+    quantity: 1,
+    rate: 0,
+    manualTotal: 0,
+    amountPaid: 0,
+    tripDetails: "",
+    notes: "",
   });
 
   // Interactive Live Truck Calculator Widget state
-  const [calcQty, setCalcQty] = useState<number>(2.6);
-  const [calcRate, setCalcRate] = useState<number>(3000);
+  const [calcQty, setCalcQty] = useState<number>(1);
+  const [calcRate, setCalcRate] = useState<number>(0);
 
   // Payment Modal input state
   const [paymentAmountInput, setPaymentAmountInput] = useState<number>(0);

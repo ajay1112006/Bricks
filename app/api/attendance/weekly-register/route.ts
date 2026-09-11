@@ -52,6 +52,32 @@ function getWeekDays(startDateStr?: string) {
   };
 }
 
+// Helper: Ensure every worker row has 6 valid dailyRecords (Mon-Sat)
+function ensureDailyRecords(members: any[], weekInfoDays: { date: string; dayName: string }[]) {
+  return (members || []).map((m: any) => {
+    let records = m.dailyRecords;
+    if (!Array.isArray(records) || records.length === 0) {
+      records = weekInfoDays.map((d) => ({
+        date: d.date,
+        dayName: d.dayName,
+        status: "P",
+        advance: 0,
+      }));
+    } else {
+      records = weekInfoDays.map((d) => {
+        const existing = records.find((r: any) => r.date === d.date);
+        return existing
+          ? { date: d.date, dayName: d.dayName, status: existing.status !== undefined ? existing.status : "P", advance: Number(existing.advance) || 0 }
+          : { date: d.date, dayName: d.dayName, status: "P", advance: 0 };
+      });
+    }
+    return {
+      ...m,
+      dailyRecords: records,
+    };
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -63,7 +89,14 @@ export async function GET(req: NextRequest) {
     if (isMock) {
       const existing = memoryStore.getWeeklyRegister(weekInfo.startDate);
       if (existing) {
-        return NextResponse.json({ success: true, data: existing, isMock: true });
+        const dataCopy = JSON.parse(JSON.stringify(existing));
+        if (dataCopy.teams) {
+          dataCopy.teams = dataCopy.teams.map((t: any) => ({
+            ...t,
+            members: ensureDailyRecords(t.members, weekInfo.days),
+          }));
+        }
+        return NextResponse.json({ success: true, data: dataCopy, isMock: true });
       }
 
       // Generate default from mock employees
@@ -87,7 +120,14 @@ export async function GET(req: NextRequest) {
     // Real Mongo query
     const existingDoc = await WeeklyTeamRegisterModel.findOne({ startDate: weekInfo.startDate });
     if (existingDoc) {
-      return NextResponse.json({ success: true, data: existingDoc, isMock: false });
+      const docObj = existingDoc.toObject ? existingDoc.toObject() : JSON.parse(JSON.stringify(existingDoc));
+      if (docObj.teams) {
+        docObj.teams = docObj.teams.map((t: any) => ({
+          ...t,
+          members: ensureDailyRecords(t.members, weekInfo.days),
+        }));
+      }
+      return NextResponse.json({ success: true, data: docObj, isMock: false });
     }
 
     // Build template from registered DB employees
@@ -270,195 +310,7 @@ export async function POST(req: NextRequest) {
 // Helper: Group employees into Default Teams (e.g., Luccas Team, Prince Team, Gopal Team, General)
 function buildDefaultTeams(employees: any[], days: { date: string; dayName: string }[]): IWeeklyTeamGroup[] {
   if (!employees || employees.length === 0) {
-    // If no employees registered, provide sample team template matching user docx
-    return [
-      {
-        teamName: "LUCCAS TEAM",
-        oldBalance: 0,
-        extraExpenses: [],
-        members: [
-          {
-            employeeId: "EMP-L01",
-            employeeName: "LUCCAS",
-            role: "Team Lead",
-            dailySalary: 1000,
-            dailyRecords: days.map((d) => ({ date: d.date, dayName: d.dayName, status: "P", advance: 0 })),
-            totalWorkingDays: 6,
-            totalWeekSalary: 6000,
-            totalAdvance: 0,
-            balance: 6000,
-          },
-          {
-            employeeId: "EMP-L02",
-            employeeName: "SATHISH",
-            role: "Labor",
-            dailySalary: 1000,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: "P", advance: i < 5 ? 500 : 0 })),
-            totalWorkingDays: 6,
-            totalWeekSalary: 6000,
-            totalAdvance: 2500,
-            balance: 3500,
-          },
-          {
-            employeeId: "EMP-L03",
-            employeeName: "RAMESH",
-            role: "Labor",
-            dailySalary: 1000,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i === 0 ? "A" : "P", advance: i > 0 && i < 5 ? 500 : 0 })),
-            totalWorkingDays: 5,
-            totalWeekSalary: 5000,
-            totalAdvance: 2000,
-            balance: 3000,
-          },
-          {
-            employeeId: "EMP-L04",
-            employeeName: "ROBIN",
-            role: "Labor",
-            dailySalary: 900,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i === 0 ? "A" : "P", advance: i > 0 && i < 5 ? 500 : 0 })),
-            totalWorkingDays: 5,
-            totalWeekSalary: 4500,
-            totalAdvance: 2000,
-            balance: 2500,
-          },
-          {
-            employeeId: "EMP-L05",
-            employeeName: "RAJAN",
-            role: "Labor",
-            dailySalary: 800,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i === 0 ? "A" : "P", advance: i === 1 ? 500 : i === 2 ? 1000 : i > 2 && i < 5 ? 500 : 0 })),
-            totalWorkingDays: 5,
-            totalWeekSalary: 4000,
-            totalAdvance: 2500,
-            balance: 1500,
-          },
-          {
-            employeeId: "EMP-L06",
-            employeeName: "SEENU",
-            role: "Labor",
-            dailySalary: 750,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i === 1 ? "A" : "P", advance: i === 0 || i === 2 ? 100 : i === 3 || i === 4 ? 200 : 0 })),
-            totalWorkingDays: 5,
-            totalWeekSalary: 3750,
-            totalAdvance: 600,
-            balance: 3150,
-          },
-        ],
-        totalTeamDays: 32,
-        totalTeamSalary: 29250,
-        totalTeamAdvance: 9600,
-        totalTeamBalance: 19650,
-        totalTeamExtraExpenses: 0,
-        grandTotalPayable: 19650,
-      },
-      {
-        teamName: "PRINCE TEAM",
-        oldBalance: 0,
-        extraExpenses: [],
-        members: [
-          {
-            employeeId: "EMP-P01",
-            employeeName: "PRINCE",
-            role: "Team Lead",
-            dailySalary: 1000,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i < 5 ? "P" : "", advance: i === 0 || i === 1 || i === 4 ? 500 : 0 })),
-            totalWorkingDays: 5,
-            totalWeekSalary: 5000,
-            totalAdvance: 1500,
-            balance: 3500,
-          },
-          {
-            employeeId: "EMP-P02",
-            employeeName: "SELVAN",
-            role: "Labor",
-            dailySalary: 800,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i < 5 ? "P" : "", advance: 0 })),
-            totalWorkingDays: 5,
-            totalWeekSalary: 4000,
-            totalAdvance: 0,
-            balance: 4000,
-          },
-          {
-            employeeId: "EMP-P03",
-            employeeName: "VINITH",
-            role: "Labor",
-            dailySalary: 800,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i < 5 ? "P" : "", advance: 0 })),
-            totalWorkingDays: 5,
-            totalWeekSalary: 4000,
-            totalAdvance: 0,
-            balance: 4000,
-          },
-        ],
-        totalTeamDays: 15,
-        totalTeamSalary: 13000,
-        totalTeamAdvance: 1500,
-        totalTeamBalance: 11500,
-        totalTeamExtraExpenses: 0,
-        grandTotalPayable: 11500,
-      },
-      {
-        teamName: "GOPAL TEAM",
-        oldBalance: 700,
-        extraExpenses: [
-          { id: "ex1", description: "MACHINE CLEANING 150*4", amount: 600 },
-          { id: "ex2", description: "SANJAY CLEANING", amount: 800 },
-          { id: "ex3", description: "MATHUKUTTY EXTRA", amount: 750 },
-        ],
-        members: [
-          {
-            employeeId: "EMP-G01",
-            employeeName: "PRASNTH",
-            role: "Labor",
-            dailySalary: 800,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i < 4 ? "P" : "A", advance: i === 0 ? 250 : 0 })),
-            totalWorkingDays: 4,
-            totalWeekSalary: 3200,
-            totalAdvance: 250,
-            balance: 2950,
-          },
-          {
-            employeeId: "EMP-G02",
-            employeeName: "SHIELD",
-            role: "Labor",
-            dailySalary: 750,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i === 5 ? "0.5" : "P", advance: i === 0 ? 350 : 0 })),
-            totalWorkingDays: 5.5,
-            totalWeekSalary: 4125,
-            totalAdvance: 350,
-            balance: 3775,
-          },
-          {
-            employeeId: "EMP-G03",
-            employeeName: "THATHAL",
-            role: "Labor",
-            dailySalary: 750,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i < 4 ? "P" : i === 4 ? "0.5" : "A", advance: i === 0 ? 250 : 0 })),
-            totalWorkingDays: 4.5,
-            totalWeekSalary: 3375,
-            totalAdvance: 250,
-            balance: 3125,
-          },
-          {
-            employeeId: "EMP-G04",
-            employeeName: "REEMA",
-            role: "Labor",
-            dailySalary: 750,
-            dailyRecords: days.map((d, i) => ({ date: d.date, dayName: d.dayName, status: i === 5 ? "0.5" : "P", advance: i === 0 ? 350 : 0 })),
-            totalWorkingDays: 5.5,
-            totalWeekSalary: 4125,
-            totalAdvance: 350,
-            balance: 3775,
-          },
-        ],
-        totalTeamDays: 19.5,
-        totalTeamSalary: 14825,
-        totalTeamAdvance: 1200,
-        totalTeamBalance: 13625,
-        totalTeamExtraExpenses: 2150,
-        grandTotalPayable: 16475,
-      },
-    ];
+    return [];
   }
 
   // Group real employees by department

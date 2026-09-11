@@ -91,6 +91,72 @@ function getMonday(d: Date): Date {
   return new Date(date.setDate(diff));
 }
 
+// Helper to generate Mon - Sat dates for a given start Monday string (YYYY-MM-DD)
+function generateMonToSatDays(startDateStr: string): DailyRecord[] {
+  const dayNames = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+  let start = new Date(startDateStr);
+  if (isNaN(start.getTime())) {
+    start = getMonday(new Date());
+  }
+  const day = start.getDay();
+  if (day !== 1) {
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+    start = new Date(start.setDate(diff));
+  }
+
+  const days: DailyRecord[] = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push({
+      date: d.toLocaleDateString("sv"),
+      dayName: dayNames[i],
+      status: "P",
+      advance: 0,
+    });
+  }
+  return days;
+}
+
+function sanitizeRegisterData(reg: WeeklyRegisterData): WeeklyRegisterData {
+  if (!reg || !reg.teams) return reg;
+  const defaultDays = generateMonToSatDays(reg.startDate || new Date().toLocaleDateString("sv"));
+
+  const sanitizedTeams = reg.teams.map((team) => {
+    const sanitizedMembers = (team.members || []).map((m) => {
+      let records = m.dailyRecords;
+      if (!Array.isArray(records) || records.length !== 6) {
+        records = defaultDays.map((defDay) => {
+          const existing = Array.isArray(records) ? records.find((r) => r.date === defDay.date) : undefined;
+          return existing
+            ? { ...defDay, ...existing }
+            : { ...defDay };
+        });
+      } else {
+        records = records.map((dr, idx) => ({
+          date: dr.date || defaultDays[idx].date,
+          dayName: dr.dayName || defaultDays[idx].dayName,
+          status: dr.status !== undefined ? dr.status : "P",
+          advance: Number(dr.advance) || 0,
+        }));
+      }
+      return {
+        ...m,
+        dailyRecords: records,
+      };
+    });
+    return {
+      ...team,
+      members: sanitizedMembers,
+    };
+  });
+
+  return {
+    ...reg,
+    teams: sanitizedTeams,
+  };
+}
+
 export default function WeeklyTeamRegister() {
   const [currentMonday, setCurrentMonday] = useState<string>(() => {
     const mon = getMonday(new Date());
@@ -152,7 +218,8 @@ export default function WeeklyTeamRegister() {
       if (!data.success) {
         throw new Error(data.error || "Failed to load weekly register");
       }
-      setRegister(data.data);
+      const sanitized = sanitizeRegisterData(data.data);
+      setRegister(recalculateRegister(sanitized));
     } catch (err: any) {
       console.error(err);
       setError(err.message || "An error occurred while loading weekly register");
@@ -303,10 +370,15 @@ export default function WeeklyTeamRegister() {
   const handleBulkSetStatus = (teamIdx: number, targetStatus: "P" | "A") => {
     if (!register) return;
     const newReg = JSON.parse(JSON.stringify(register)) as WeeklyRegisterData;
+    const daysTemplate = generateMonToSatDays(newReg.startDate);
     newReg.teams[teamIdx].members.forEach((m) => {
-      m.dailyRecords.forEach((dr) => {
-        dr.status = targetStatus;
-      });
+      if (!m.dailyRecords || m.dailyRecords.length === 0) {
+        m.dailyRecords = daysTemplate.map((d) => ({ ...d, status: targetStatus, advance: 0 }));
+      } else {
+        m.dailyRecords.forEach((dr) => {
+          dr.status = targetStatus;
+        });
+      }
     });
     setRegister(recalculateRegister(newReg));
   };
@@ -315,12 +387,12 @@ export default function WeeklyTeamRegister() {
   const handleAddWorkerToTeam = (teamIdx: number) => {
     if (!register || !newWorkerName.trim()) return;
     const newReg = JSON.parse(JSON.stringify(register)) as WeeklyRegisterData;
-    const days = newReg.teams[0]?.members[0]?.dailyRecords.map((d) => ({
+    const days = generateMonToSatDays(register.startDate).map((d) => ({
       date: d.date,
       dayName: d.dayName,
       status: "P" as const,
       advance: 0,
-    })) || [];
+    }));
 
     const newWorker: WorkerRow = {
       employeeId: `EMP-${Math.floor(100 + Math.random() * 900)}`,
@@ -921,6 +993,11 @@ export default function WeeklyTeamRegister() {
                   </div>
                 </div>
 
+                {/* Mobile visual hint for scrolling table */}
+                <div className="md:hidden px-3.5 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] font-semibold flex items-center justify-between">
+                  <span>👈 Scroll table horizontally to mark P / A / 0.5 for Mon–Sat 👉</span>
+                </div>
+
                 {/* Team Multi-Day Register Table */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
@@ -931,16 +1008,16 @@ export default function WeeklyTeamRegister() {
                         <th className="p-2.5 min-w-[90px] text-center font-bold">RATE (₹/day)</th>
 
                         {/* Mon to Sat Days */}
-                        {team.members[0]?.dailyRecords.map((dr, dayIdx) => (
+                        {generateMonToSatDays(register?.startDate || currentMonday).map((dayInfo) => (
                           <th
-                            key={dr.date}
-                            className="p-2 min-w-[100px] text-center border-l border-slate-200 dark:border-slate-800"
+                            key={dayInfo.date}
+                            className="p-2 min-w-[95px] text-center border-l border-slate-200 dark:border-slate-800 bg-amber-500/5 dark:bg-amber-500/10"
                           >
                             <div className="font-bold text-[11px] text-slate-900 dark:text-slate-100">
-                              {dr.dayName.substring(0, 3)}
+                              {dayInfo.dayName.substring(0, 3)}
                             </div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                              {dr.date.split("-").slice(1).join("/")}
+                              {dayInfo.date.split("-").slice(1).join("/")}
                             </div>
                           </th>
                         ))}
@@ -1008,16 +1085,22 @@ export default function WeeklyTeamRegister() {
                             </td>
 
                             {/* 6 Day Columns (Mon - Sat) */}
-                            {m.dailyRecords.map((dr, dayIdx) => {
+                            {generateMonToSatDays(register?.startDate || currentMonday).map((dayInfo, dayIdx) => {
+                              const dr = (m.dailyRecords || []).find((r) => r.date === dayInfo.date) || {
+                                date: dayInfo.date,
+                                dayName: dayInfo.dayName,
+                                status: "P",
+                                advance: 0,
+                              };
                               const isPresent = dr.status === "P" || dr.status === "1";
-                              const isThreeQuarter = dr.status === "0.75" || dr.status === ".75";
-                              const isHalf = dr.status === "0.5" || dr.status === ".5";
-                              const isQuarter = dr.status === "0.25" || dr.status === ".25";
+                              const isThreeQuarter = dr.status === "0.75" || dr.status === ".75" || dr.status === "3/4";
+                              const isHalf = dr.status === "0.5" || dr.status === ".5" || dr.status === "1/2";
+                              const isQuarter = dr.status === "0.25" || dr.status === ".25" || dr.status === "1/4";
                               const isAbsent = dr.status === "A";
 
                               return (
                                 <td
-                                  key={dr.date}
+                                  key={dayInfo.date}
                                   className="p-1.5 text-center border-l border-slate-100 dark:border-slate-800/80 align-top"
                                 >
                                   {/* Fractional Day Toggle Badge */}
@@ -1026,27 +1109,27 @@ export default function WeeklyTeamRegister() {
                                     onClick={() =>
                                       handleToggleDayStatus(actualTeamIdx, mIdx, dayIdx)
                                     }
-                                    className={`w-full py-1 rounded text-[11px] font-bold transition-all shadow-xs flex items-center justify-center space-x-1 ${
+                                    className={`w-full py-1.5 px-1 rounded text-[11px] font-bold transition-all shadow-xs flex items-center justify-center space-x-1 ${
                                       isPresent
-                                        ? "bg-emerald-600 text-white shadow-emerald-600/20"
+                                        ? "bg-emerald-600 text-white shadow-emerald-600/20 hover:bg-emerald-700"
                                         : isThreeQuarter
-                                        ? "bg-teal-600 text-white shadow-teal-600/20"
+                                        ? "bg-teal-600 text-white shadow-teal-600/20 hover:bg-teal-700"
                                         : isHalf
-                                        ? "bg-amber-500 text-white shadow-amber-500/20"
+                                        ? "bg-amber-500 text-white shadow-amber-500/20 hover:bg-amber-600"
                                         : isQuarter
-                                        ? "bg-purple-600 text-white shadow-purple-600/20"
+                                        ? "bg-purple-600 text-white shadow-purple-600/20 hover:bg-purple-700"
                                         : isAbsent
-                                        ? "bg-rose-600 text-white shadow-rose-600/20"
-                                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200"
+                                        ? "bg-rose-600 text-white shadow-rose-600/20 hover:bg-rose-700"
+                                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                                     }`}
-                                    title={`Click to cycle: Present (P) -> 0.75 -> 0.5 -> 0.25 -> Absent (A) -> None`}
+                                    title="Click to cycle: Present (P) -> 0.75 -> 0.5 -> 0.25 -> Absent (A) -> None"
                                   >
                                     <span>{dr.status || "-"}</span>
                                   </button>
 
                                   {/* Daily Advance Input Box */}
                                   <div className="mt-1 flex items-center">
-                                    <span className="text-[9px] text-slate-400 mr-0.5">₹</span>
+                                    <span className="text-[9px] text-slate-400 mr-0.5 select-none">₹</span>
                                     <input
                                       type="number"
                                       placeholder="0"
@@ -1124,15 +1207,15 @@ export default function WeeklyTeamRegister() {
                         <td className="p-2.5 text-center text-slate-400">-</td>
 
                         {/* Day-wise total advances */}
-                        {team.members[0]?.dailyRecords.map((dr, dayIdx) => {
+                        {generateMonToSatDays(register?.startDate || currentMonday).map((dayInfo) => {
                           const dayTotalAdvance = team.members.reduce((sum, mem) => {
-                            const rec = mem.dailyRecords.find((r) => r.date === dr.date);
+                            const rec = (mem.dailyRecords || []).find((r) => r.date === dayInfo.date);
                             return sum + (rec?.advance || 0);
                           }, 0);
 
                           return (
                             <td
-                              key={dr.date}
+                              key={dayInfo.date}
                               className="p-2 text-center border-l border-slate-300 dark:border-slate-700"
                             >
                               <div className="text-[11px] font-mono font-black text-slate-800 dark:text-slate-200">
@@ -1753,10 +1836,10 @@ export default function WeeklyTeamRegister() {
                     <th className="p-2 border border-slate-300 w-8 text-center">#</th>
                     <th className="p-2 border border-slate-300 min-w-[140px]">WORKER NAME</th>
                     <th className="p-2 border border-slate-300 text-center w-24">RATE (₹/day)</th>
-                    {team.members[0]?.dailyRecords.map((dr, dIdx) => (
+                    {generateMonToSatDays(register?.startDate || currentMonday).map((dayInfo, dIdx) => (
                       <th key={dIdx} className="p-2 border border-slate-300 text-center min-w-[65px]">
-                        <div>{dr.dayName.substring(0, 3)}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{dr.date.split("-").slice(1).join("/")}</div>
+                        <div>{dayInfo.dayName.substring(0, 3)}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{dayInfo.date.split("-").slice(1).join("/")}</div>
                       </th>
                     ))}
                     <th className="p-2 border border-slate-300 text-center w-12 bg-indigo-50">DAYS</th>
@@ -1778,32 +1861,35 @@ export default function WeeklyTeamRegister() {
                       <td className="p-2 border border-slate-300 text-center font-mono font-bold text-slate-900">
                         ₹{m.dailySalary || 0}
                       </td>
-                      {m.dailyRecords.map((dr, dIdx) => (
-                        <td key={dIdx} className="p-1.5 border border-slate-300 text-center align-top">
-                          <span
-                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              dr.status === "P" || dr.status === "1"
-                                ? "bg-emerald-600 text-white"
-                                : dr.status === "0.75" || dr.status === ".75"
-                                ? "bg-teal-600 text-white"
-                                : dr.status === "0.5" || dr.status === ".5"
-                                ? "bg-amber-500 text-white"
-                                : dr.status === "0.25" || dr.status === ".25"
-                                ? "bg-purple-600 text-white"
-                                : dr.status === "A"
-                                ? "bg-rose-600 text-white"
-                                : "text-slate-400"
-                            }`}
-                          >
-                            {dr.status || "-"}
-                          </span>
-                          {dr.advance > 0 && (
-                            <div className="text-[9px] font-mono font-bold text-rose-700 mt-0.5">
-                              ₹{dr.advance}
-                            </div>
-                          )}
-                        </td>
-                      ))}
+                      {generateMonToSatDays(register?.startDate || currentMonday).map((dayInfo, dIdx) => {
+                        const dr = (m.dailyRecords || []).find((r) => r.date === dayInfo.date) || { status: "", advance: 0 };
+                        return (
+                          <td key={dIdx} className="p-1.5 border border-slate-300 text-center align-top">
+                            <span
+                              className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                dr.status === "P" || dr.status === "1"
+                                  ? "bg-emerald-600 text-white"
+                                  : dr.status === "0.75" || dr.status === ".75"
+                                  ? "bg-teal-600 text-white"
+                                  : dr.status === "0.5" || dr.status === ".5"
+                                  ? "bg-amber-500 text-white"
+                                  : dr.status === "0.25" || dr.status === ".25"
+                                  ? "bg-purple-600 text-white"
+                                  : dr.status === "A"
+                                  ? "bg-rose-600 text-white"
+                                  : "text-slate-400"
+                              }`}
+                            >
+                              {dr.status || "-"}
+                            </span>
+                            {dr.advance > 0 && (
+                              <div className="text-[9px] font-mono font-bold text-rose-700 mt-0.5">
+                                ₹{dr.advance}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
                       <td className="p-2 border border-slate-300 text-center font-mono font-bold bg-indigo-50/50 text-indigo-900">
                         {m.totalWorkingDays}
                       </td>
@@ -1825,9 +1911,9 @@ export default function WeeklyTeamRegister() {
                       {team.teamName} SUB-TOTALS
                     </td>
                     <td className="p-2 border border-slate-300 text-center">-</td>
-                    {team.members[0]?.dailyRecords.map((dr, dIdx) => {
+                    {generateMonToSatDays(register?.startDate || currentMonday).map((dayInfo, dIdx) => {
                       const dayAdv = team.members.reduce((sum, mem) => {
-                        const rec = mem.dailyRecords.find((r) => r.date === dr.date);
+                        const rec = (mem.dailyRecords || []).find((r) => r.date === dayInfo.date);
                         return sum + (rec?.advance || 0);
                       }, 0);
                       return (

@@ -43,122 +43,13 @@ export interface MockOrder {
   createdAt: string;
 }
 
-let mockEmployees: MockEmployee[] = [
-  { employeeId: "EMP-001", name: "Alex Mercer", role: "Senior Mason", department: "Construction", status: "Active", dailySalary: 850, advanceAmount: 2000, createdAt: new Date().toISOString() },
-  { employeeId: "EMP-002", name: "Sarah Connor", role: "Project Manager", department: "Operations", status: "Active", dailySalary: 1200, advanceAmount: 0, createdAt: new Date().toISOString() },
-  { employeeId: "EMP-003", name: "David Miller", role: "Site Supervisor", department: "Field Ops", status: "Active", dailySalary: 950, advanceAmount: 1500, createdAt: new Date().toISOString() },
-  { employeeId: "EMP-004", name: "Elena Rostova", role: "Safety Officer", department: "Quality & Safety", status: "Active", dailySalary: 900, advanceAmount: 0, createdAt: new Date().toISOString() },
-  { employeeId: "EMP-005", name: "Marcus Vance", role: "Logistics Specialist", department: "Supply Chain", status: "Active", dailySalary: 750, advanceAmount: 1000, createdAt: new Date().toISOString() },
-  { employeeId: "EMP-006", name: "James Holden", role: "Structural Technician", department: "Construction", status: "Active", dailySalary: 800, advanceAmount: 500, createdAt: new Date().toISOString() },
-];
+let mockEmployees: MockEmployee[] = [];
 
 const today = new Date().toLocaleDateString("sv");
 
-let mockAttendance: MockAttendance[] = [
-  {
-    date: today,
-    session: 1,
-    records: [
-      { employeeId: "EMP-001", employeeName: "Alex Mercer", status: "Present", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-002", employeeName: "Sarah Connor", status: "Present", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-003", employeeName: "David Miller", status: "Present", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-004", employeeName: "Elena Rostova", status: "Absent", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-005", employeeName: "Marcus Vance", status: "Present", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-006", employeeName: "James Holden", status: "Present", timestamp: new Date().toISOString() },
-    ],
-    updatedAt: new Date().toISOString()
-  },
-  {
-    date: today,
-    session: 2,
-    records: [
-      { employeeId: "EMP-001", employeeName: "Alex Mercer", status: "Present", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-002", employeeName: "Sarah Connor", status: "Present", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-003", employeeName: "David Miller", status: "Absent", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-004", employeeName: "Elena Rostova", status: "Present", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-005", employeeName: "Marcus Vance", status: "Present", timestamp: new Date().toISOString() },
-      { employeeId: "EMP-006", employeeName: "James Holden", status: "Present", timestamp: new Date().toISOString() },
-    ],
-    updatedAt: new Date().toISOString()
-  }
-];
+let mockAttendance: MockAttendance[] = [];
 
-let mockOrders: MockOrder[] = [
-  {
-    orderId: "ORD-8901",
-    customerName: "Apex Horizon Towers",
-    customerPhone: "+91 98765 43210",
-    customerEmail: "procurement@apexhorizon.com",
-    items: [
-      { name: "High-Density Concrete Bricks (10k Batch)", quantity: 5, unitPrice: 24000, costPrice: 16000 },
-      { name: "Reinforced Steel Support Beams", quantity: 12, unitPrice: 8500, costPrice: 5500 }
-    ],
-    status: "In Progress",
-    revenue: 222000,
-    costs: { materials: 146000, labor: 28000, overhead: 12000, shipping: 8000 },
-    marginAdjustment: 0,
-    netProfit: 28000,
-    profitMarginPercent: 12.61,
-    notes: "Express delivery batch for Sector 7 site",
-    date: today,
-    createdAt: new Date().toISOString()
-  },
-  {
-    orderId: "ORD-8902",
-    customerName: "Vanguard Logistics Center",
-    customerPhone: "+91 95669 57474",
-    customerEmail: "orders@vanguardlog.com",
-    items: [
-      { name: "Paving Interlocking Bricks (Grade A)", quantity: 20, unitPrice: 9500, costPrice: 6200 },
-      { name: "Industrial Cement Sealant 50L", quantity: 8, unitPrice: 3200, costPrice: 1900 }
-    ],
-    status: "Delivered",
-    revenue: 215600,
-    costs: { materials: 139200, labor: 22000, overhead: 9500, shipping: 6500 },
-    marginAdjustment: 3500, // Positive adjustment calibrated
-    netProfit: 41400,
-    profitMarginPercent: 19.20,
-    notes: "Delivered on schedule. ₹3,500 bonus rebate calibrated.",
-    date: today,
-    createdAt: new Date().toISOString()
-  },
-  {
-    orderId: "ORD-8903",
-    customerName: "Metro Urban Infrastructure",
-    customerPhone: "+91 94432 10987",
-    customerEmail: "contact@metrourban.org",
-    items: [
-      { name: "Acoustic Insulation Masonry Units", quantity: 15, unitPrice: 11000, costPrice: 8000 }
-    ],
-    status: "In Progress",
-    revenue: 165000,
-    costs: { materials: 120000, labor: 21000, overhead: 11000, shipping: 9000 },
-    marginAdjustment: -2000, // Calibrated loss surcharge adjustment
-    netProfit: 3000,
-    profitMarginPercent: 1.82,
-    notes: "Margin tight due to unexpected freight surge. Requires calibration review.",
-    date: today,
-    createdAt: new Date().toISOString()
-  },
-  {
-    orderId: "ORD-8904",
-    customerName: "Skyline Residential Estate",
-    customerPhone: "+91 91234 56789",
-    customerEmail: "billing@skylineres.com",
-    items: [
-      { name: "Terracotta Facing Bricks Custom Tint", quantity: 30, unitPrice: 7800, costPrice: 4800 }
-    ],
-    status: "Delivered",
-    revenue: 234000,
-    costs: { materials: 144000, labor: 29000, overhead: 11500, shipping: 7500 },
-    marginAdjustment: 1000,
-    netProfit: 43000,
-    profitMarginPercent: 18.38,
-    notes: "Completed phase 1 supply",
-    date: today,
-    createdAt: new Date().toISOString()
-  }
-];
+let mockOrders: MockOrder[] = [];
 
 export interface MockMaterial {
   materialId: string;
@@ -190,80 +81,9 @@ export interface MockTruckService {
   createdAt: string;
 }
 
-let mockMaterials: MockMaterial[] = [
-  {
-    materialId: "MAT-101",
-    name: "Industrial Heavy Machinery Oil",
-    category: "Oil",
-    date: today,
-    totalCost: 15400,
-    amountPaid: 10000,
-    amountDue: 5400,
-    paymentStatus: "Partial",
-    supplier: "Castrol Industrial Supplies",
-    notes: "200L Drum for Hydraulic Brick Presses",
-    createdAt: new Date().toISOString()
-  },
-  {
-    materialId: "MAT-102",
-    name: "Hardwood Timber Pallets & Beams",
-    category: "Wood",
-    date: today,
-    totalCost: 28500,
-    amountPaid: 28500,
-    amountDue: 0,
-    paymentStatus: "Paid",
-    supplier: "Evergreen Timber Works",
-    notes: "150 Pallets for brick curing and stacking",
-    createdAt: new Date().toISOString()
-  },
-  {
-    materialId: "MAT-103",
-    name: "High-Grade Diesel Fuel (Site Generators)",
-    category: "Diesel",
-    date: today,
-    totalCost: 42000,
-    amountPaid: 20000,
-    amountDue: 22000,
-    paymentStatus: "Partial",
-    supplier: "Apex Energy & Fuels",
-    notes: "500 Liters for kiln generators & excavators",
-    createdAt: new Date().toISOString()
-  }
-];
+let mockMaterials: MockMaterial[] = [];
 
-let mockTrucks: MockTruckService[] = [
-  {
-    truckId: "TRK-501",
-    vehicleNumber: "TN-38-AX-2094",
-    driverName: "Ramesh Kumar (Speedy Transport)",
-    date: today,
-    quantity: 2.6,
-    rate: 3000,
-    totalPrice: 7800, // 2.6 * 3000
-    amountPaid: 5000,
-    amountDue: 2800,
-    paymentStatus: "Partial",
-    tripDetails: "2.6 trips of red clay transport to kiln site",
-    notes: "Calculated as 2.6 x 3,000 = ₹7,800",
-    createdAt: new Date().toISOString()
-  },
-  {
-    truckId: "TRK-502",
-    vehicleNumber: "TN-37-BY-8812",
-    driverName: "Suresh Logistics",
-    date: today,
-    quantity: 4,
-    rate: 4500,
-    totalPrice: 18000,
-    amountPaid: 18000,
-    amountDue: 0,
-    paymentStatus: "Paid",
-    tripDetails: "4 full loads of finished interlocking bricks delivered to Horizon site",
-    notes: "Express highway freight fee included",
-    createdAt: new Date().toISOString()
-  }
-];
+let mockTrucks: MockTruckService[] = [];
 
 export interface MockLaborWage {
   name: string;
