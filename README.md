@@ -47,6 +47,12 @@ It provides two core business management modules:
   - Top margin order benchmark.
   - Loss alerts and margin risk indicators.
 
+### 3. Admin Panel (`/admin`) — Password Protected
+- **Single Admin Hub**: Attendance, Billing, Materials, Splitter and Ledger all live inside `/admin`.
+- **Password gate**: the admin password (`ADMIN_PASSWORD` in `.env.local`, defaults to `admin@123`) issues a signed **HttpOnly session cookie** valid for 7 days.
+- **Server-side enforcement** (`middleware.ts`): unauthenticated visits to `/attendance`, `/billing`, `/materials`, `/splitter`, `/transactions` are redirected to `/admin?next=…`, and their API routes answer `401`.
+- **Sign out**: clears the session cookie; changing `ADMIN_PASSWORD` revokes every active session at once.
+
 ---
 
 ## Database Schemas (MongoDB / Mongoose)
@@ -126,6 +132,8 @@ It provides two core business management modules:
 | `/api/orders/[id]` | `DELETE` | Delete order |
 | `/api/orders/[id]/calibrate` | `PUT` | **P&L Calibration tool endpoint** for manual revenue/cost/margin adjustments |
 | `/api/seed` | `POST` | Seed database with demo employees & orders |
+| `/api/admin/login` | `POST` | Verify the admin password and set the session cookie (`{ password, next? }`) |
+| `/api/admin/logout` | `POST` | Clear the admin session cookie |
 
 ---
 
@@ -140,6 +148,7 @@ It provides two core business management modules:
    Create a `.env.local` file:
    ```env
    MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/bricks?retryWrites=true&w=majority
+   ADMIN_PASSWORD=your-admin-password
    ```
    *(If `MONGODB_URI` is omitted, Bricks automatically runs in Mock Store mode with realistic seed data so you can test immediately!)*
 
