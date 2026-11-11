@@ -3,12 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, Home, Loader2, Lock, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Home, KeyRound, Loader2, Lock, ShieldAlert } from "lucide-react";
+import ChangePasswordModal from "./ChangePasswordModal";
 
 export default function AdminLogin({ next }: { next: string }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -119,6 +121,17 @@ export default function AdminLogin({ next }: { next: string }) {
                 <span>Unlock Admin Panel</span>
               )}
             </button>
+
+            <div className="pt-1 text-center">
+              <button
+                type="button"
+                onClick={() => setShowChangePassword(true)}
+                className="inline-flex items-center space-x-1.5 text-xs text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium transition-colors cursor-pointer"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Change admin password</span>
+              </button>
+            </div>
           </form>
 
           <div className="flex items-center justify-between pt-4 border-t border-amber-900/10 dark:border-amber-500/20 text-xs">
@@ -139,6 +152,16 @@ export default function AdminLogin({ next }: { next: string }) {
           </div>
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        onSuccess={() => {
+          router.replace(next || "/admin");
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

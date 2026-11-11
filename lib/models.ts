@@ -365,5 +365,21 @@ const WeeklyTeamRegisterSchema = new Schema<IWeeklyTeamRegister>({
 export const WeeklyTeamRegisterModel: Model<IWeeklyTeamRegister> =
   mongoose.models.WeeklyTeamRegister || mongoose.model<IWeeklyTeamRegister>("WeeklyTeamRegister", WeeklyTeamRegisterSchema);
 
+// --- ADMIN SETTING MODEL ---
+export interface IAdminSetting extends Document {
+  key: string;
+  value: string;
+  updatedAt: Date;
+}
+
+const AdminSettingSchema = new Schema<IAdminSetting>({
+  key: { type: String, required: true, unique: true, index: true },
+  value: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now },
+});
+
+export const AdminSettingModel: Model<IAdminSetting> =
+  mongoose.models.AdminSetting || mongoose.model<IAdminSetting>("AdminSetting", AdminSettingSchema);
+
 
 

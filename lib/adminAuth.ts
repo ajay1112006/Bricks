@@ -15,11 +15,30 @@ export const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 /** Fallback used only when ADMIN_PASSWORD is missing from the environment. */
 const DEFAULT_ADMIN_PASSWORD = "admin@123";
 
+let runtimeAdminPasswordOverride: string | null = null;
+
+export function setRuntimeAdminPassword(newPassword: string): void {
+  runtimeAdminPasswordOverride = newPassword;
+  process.env.ADMIN_PASSWORD = newPassword;
+}
+
 const textEncoder = new TextEncoder();
 
 export function getAdminPassword(): string {
-  const fromEnv = process.env.ADMIN_PASSWORD?.trim();
-  return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_ADMIN_PASSWORD;
+  if (runtimeAdminPasswordOverride && runtimeAdminPasswordOverride.length > 0) {
+    return runtimeAdminPasswordOverride;
+  }
+  let fromEnv = process.env.ADMIN_PASSWORD?.trim();
+  if (fromEnv) {
+    if (
+      (fromEnv.startsWith('"') && fromEnv.endsWith('"')) ||
+      (fromEnv.startsWith("'") && fromEnv.endsWith("'"))
+    ) {
+      fromEnv = fromEnv.slice(1, -1);
+    }
+    if (fromEnv.length > 0) return fromEnv;
+  }
+  return DEFAULT_ADMIN_PASSWORD;
 }
 
 /** Length-independent string comparison (avoids early-exit timing leaks). */

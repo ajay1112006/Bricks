@@ -9,6 +9,7 @@ import {
   Clock,
   FileText,
   Home,
+  KeyRound,
   Loader2,
   LogOut,
   Receipt,
@@ -16,6 +17,7 @@ import {
   Truck,
 } from "lucide-react";
 import { handleCardMouseMove } from "@/lib/useSpotlight";
+import ChangePasswordModal from "./ChangePasswordModal";
 
 const MODULES = [
   {
@@ -63,6 +65,7 @@ const MODULES = [
 export default function AdminDashboard() {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -92,18 +95,26 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           <Link
             href="/"
-            className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-white/60 dark:bg-black/40 border border-amber-500/30 hover:border-amber-500/60 text-slate-700 dark:text-amber-200 text-xs sm:text-sm font-semibold transition-all"
+            className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl bg-white/60 dark:bg-black/40 border border-amber-500/30 hover:border-amber-500/60 text-slate-700 dark:text-amber-200 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap"
           >
             <Home className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <span>Home</span>
           </Link>
           <button
+            type="button"
+            onClick={() => setIsChangePasswordOpen(true)}
+            className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/60 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap"
+          >
+            <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <span>Change Password</span>
+          </button>
+          <button
             onClick={handleSignOut}
             disabled={signingOut}
-            className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-rose-600/20 transition-all disabled:opacity-60"
+            className="flex-1 md:flex-none inline-flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-rose-600/20 transition-all disabled:opacity-60 whitespace-nowrap"
           >
             {signingOut ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -161,21 +172,38 @@ export default function AdminDashboard() {
           );
         })}
 
-        {/* Session note */}
-        <div className="glass-panel p-5 lg:p-6 rounded-3xl flex flex-col justify-center items-start border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4">
-            <ShieldCheck className="w-6 h-6" />
+        {/* Security & Password card */}
+        <div className="glass-panel p-5 lg:p-6 rounded-3xl flex flex-col justify-between border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent">
+          <div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-serif font-bold text-slate-900 dark:text-amber-100">
+              Admin Security
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+              Your admin session is signed and stays valid for 7 days. You can update your admin password at any time by entering your current password.
+            </p>
           </div>
-          <h3 className="text-lg font-serif font-bold text-slate-900 dark:text-amber-100">
-            Session Secured
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-            Your admin session stays valid for 7 days. Signing out — or changing the
-            <span className="font-mono font-bold text-amber-700 dark:text-amber-300"> ADMIN_PASSWORD </span>
-            environment variable — locks these modules again immediately.
-          </p>
+
+          <div className="mt-6 pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
+            <button
+              type="button"
+              onClick={() => setIsChangePasswordOpen(true)}
+              className="inline-flex items-center justify-center space-x-2 w-full px-3.5 sm:px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/60 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-semibold transition-all"
+            >
+              <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>Change Admin Password</span>
+            </button>
+          </div>
         </div>
       </section>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </div>
   );
 }
